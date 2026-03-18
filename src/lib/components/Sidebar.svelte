@@ -4,6 +4,7 @@
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: "grid" },
     { id: "projects", label: "Projects", icon: "folder" },
+    { id: "php", label: "PHP", icon: "code" },
     { id: "database", label: "Database", icon: "database" },
     { id: "mail", label: "Mail", icon: "mail" },
     { id: "logs", label: "Logs", icon: "terminal" },
