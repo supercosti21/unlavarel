@@ -13,6 +13,10 @@ pub mod projects;
 pub mod quickapp;
 pub mod php;
 pub mod tray;
+pub mod logs;
+pub mod settings;
+pub mod sharing;
+pub mod snapshots;
 
 use services::{
     get_services, start_service, stop_service, restart_service,
@@ -22,6 +26,10 @@ use projects::{get_projects, add_project, remove_project};
 use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete};
 use quickapp::{get_templates, create_app};
 use php::{get_php_versions, switch_php_version, get_php_extensions, toggle_php_extension};
+use logs::{watch_service_logs, unwatch_service_logs};
+use settings::{get_settings, save_settings, open_in_editor, open_in_browser};
+use sharing::{share_site, stop_sharing, get_sharing_providers};
+use snapshots::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot};
 
 pub fn run() {
     tauri::Builder::default()
@@ -56,6 +64,23 @@ pub fn run() {
             switch_php_version,
             get_php_extensions,
             toggle_php_extension,
+            // Logs (real-time)
+            watch_service_logs,
+            unwatch_service_logs,
+            // Settings
+            get_settings,
+            save_settings,
+            open_in_editor,
+            open_in_browser,
+            // Sharing
+            share_site,
+            stop_sharing,
+            get_sharing_providers,
+            // Snapshots
+            create_snapshot,
+            list_snapshots,
+            restore_snapshot,
+            delete_snapshot,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MacEnv");
