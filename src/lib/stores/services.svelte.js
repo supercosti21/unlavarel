@@ -4,6 +4,7 @@ function createServicesStore() {
   let services = $state([]);
   let loading = $state(false);
   let error = $state(null);
+  let needsAuth = $state(false);
 
   async function loadServices() {
     loading = true;
@@ -28,40 +29,50 @@ function createServicesStore() {
 
   async function toggleService(id, currentlyRunning) {
     const command = currentlyRunning ? "stop_service" : "start_service";
+    error = null;
     try {
       const updated = await invoke(command, { name: id });
       services = services.map((s) => (s.id === id ? updated : s));
     } catch (e) {
-      error = String(e);
-      // Reload to get real state
+      const msg = String(e);
+      if (msg.includes("password") || msg.includes("auth") || msg.includes("pkexec") || msg.includes("dismissed")) {
+        needsAuth = true;
+      }
+      error = msg;
       await loadServices();
     }
   }
 
   async function restartService(id) {
+    error = null;
     try {
       const updated = await invoke("restart_service", { name: id });
       services = services.map((s) => (s.id === id ? updated : s));
     } catch (e) {
-      error = String(e);
+      const msg = String(e);
+      if (msg.includes("password") || msg.includes("auth") || msg.includes("pkexec") || msg.includes("dismissed")) {
+        needsAuth = true;
+      }
+      error = msg;
       await loadServices();
     }
   }
 
+  function clearError() {
+    error = null;
+    needsAuth = false;
+  }
+
   return {
-    get services() {
-      return services;
-    },
-    get loading() {
-      return loading;
-    },
-    get error() {
-      return error;
-    },
+    get services() { return services; },
+    get loading() { return loading; },
+    get error() { return error; },
+    get needsAuth() { return needsAuth; },
     loadServices,
     refreshDiscovery,
     toggleService,
     restartService,
+    clearError,
   };
 }
 

@@ -15,6 +15,7 @@
   import QuickAppDialog from "./lib/components/QuickAppDialog.svelte";
   import SharingPanel from "./lib/components/SharingPanel.svelte";
   import SnapshotsPanel from "./lib/components/SnapshotsPanel.svelte";
+  import PasswordDialog from "./lib/components/PasswordDialog.svelte";
   import { servicesStore } from "./lib/stores/services.svelte.js";
   import { projectsStore } from "./lib/stores/projects.svelte.js";
 
@@ -23,6 +24,8 @@
   let showSetup = $state(false);
   let checkingSetup = $state(true);
   let showQuickApp = $state(false);
+  let showPasswordDialog = $state(false);
+  let pendingAction = $state(null);
   let activeLogService = $state(null);
   let unlistenLog = $state(null);
 
@@ -79,18 +82,53 @@
     activePage = page;
   }
 
-  async function startAll() {
+  /// Run an action that may need elevation — prompts for password if needed
+  async function withElevation(action) {
     try {
+      const hasPwd = await invoke("has_session_password");
+      if (!hasPwd) {
+        // Show password dialog, then run action after auth
+        pendingAction = action;
+        showPasswordDialog = true;
+        return;
+      }
+      await action();
+    } catch (e) {
+      // If it fails due to auth, show password dialog
+      const msg = String(e);
+      if (msg.includes("password") || msg.includes("auth") || msg.includes("pkexec")) {
+        pendingAction = action;
+        showPasswordDialog = true;
+      }
+    }
+  }
+
+  function onPasswordSuccess() {
+    showPasswordDialog = false;
+    if (pendingAction) {
+      const action = pendingAction;
+      pendingAction = null;
+      action();
+    }
+  }
+
+  function onPasswordCancel() {
+    showPasswordDialog = false;
+    pendingAction = null;
+  }
+
+  async function startAll() {
+    await withElevation(async () => {
       await invoke("start_all_services");
       await servicesStore.loadServices();
-    } catch {}
+    });
   }
 
   async function stopAll() {
-    try {
+    await withElevation(async () => {
       await invoke("stop_all_services");
       await servicesStore.loadServices();
-    } catch {}
+    });
   }
 
   async function watchLogs(serviceName) {
@@ -284,6 +322,13 @@
     <QuickAppDialog
       onCreated={handleAppCreated}
       onClose={() => (showQuickApp = false)}
+    />
+  {/if}
+
+  {#if showPasswordDialog}
+    <PasswordDialog
+      onSuccess={onPasswordSuccess}
+      onCancel={onPasswordCancel}
     />
   {/if}
 {/if}

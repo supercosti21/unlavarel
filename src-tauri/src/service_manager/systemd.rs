@@ -48,11 +48,17 @@ impl Systemd {
 
     /// Run systemctl with pkexec for operations that need root
     async fn systemctl_elevated(&self, args: &[&str]) -> Result<String> {
-        let output = Command::new("pkexec")
-            .arg("systemctl")
-            .args(args)
-            .output()
-            .await?;
+        let mut full_args = vec!["systemctl"];
+        full_args.extend_from_slice(args);
+        let script = full_args.join(" ");
+
+        let output = crate::elevated::run_script_elevated(&script)
+            .await
+            .map_err(|e| MacEnvError::ServiceOperationFailed {
+                service: args.last().unwrap_or(&"unknown").to_string(),
+                op: args.first().unwrap_or(&"unknown").to_string(),
+                reason: e,
+            })?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -104,10 +110,12 @@ impl Systemd {
         }
 
         // Run mariadb-install-db
-        let output = Command::new("pkexec")
-            .args(["mariadb-install-db", "--user=mysql", "--basedir=/usr", "--datadir=/var/lib/mysql"])
-            .output()
-            .await?;
+        let output = crate::elevated::run_elevated(
+            "mariadb-install-db",
+            &["--user=mysql", "--basedir=/usr", "--datadir=/var/lib/mysql"],
+        )
+        .await
+        .map_err(MacEnvError::Other)?;
 
         if output.status.success() {
             Ok(())

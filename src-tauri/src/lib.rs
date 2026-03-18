@@ -19,6 +19,7 @@ pub mod settings;
 pub mod sharing;
 pub mod snapshots;
 pub mod database;
+pub mod elevated;
 
 use discovery::{discover_services, get_cached_services};
 use services::{
@@ -34,6 +35,7 @@ use settings::{get_settings, save_settings, open_in_editor, open_in_browser};
 use sharing::{share_site, stop_sharing, get_sharing_providers};
 use snapshots::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot};
 use database::{db_test_connection, db_get_connection, db_list_databases, db_create_database, db_drop_database, db_list_tables, db_describe_table, db_run_query};
+use elevated::{save_session_password, has_session_password, clear_session_password};
 
 pub fn run() {
     tauri::Builder::default()
@@ -100,6 +102,10 @@ pub fn run() {
             db_list_tables,
             db_describe_table,
             db_run_query,
+            // Elevated / password
+            save_session_password,
+            has_session_password,
+            clear_session_password,
         ])
         .run(tauri::generate_context!())
         .expect("error while running MacEnv");
