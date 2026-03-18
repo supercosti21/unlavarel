@@ -239,7 +239,7 @@ button:disabled {
 }
 
 /* Input */
-input, select {
+input:not([type="checkbox"]):not([type="radio"]), select {
   font-family: inherit;
   font-size: var(--text-sm);
   background: var(--color-bg-input);
@@ -262,7 +262,7 @@ select {
   cursor: pointer;
 }
 
-input:focus, select:focus {
+input:not([type="checkbox"]):not([type="radio"]):focus, select:focus {
   border-color: var(--color-border-focus);
 }
 
