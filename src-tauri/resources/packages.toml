@@ -1,0 +1,306 @@
+# MacEnv Package Registry
+# Maps canonical package names to native package names per package manager.
+# Pattern variables: {version}, {prefix}
+
+[php]
+description = "PHP interpreter and FPM"
+category = "language"
+has_service = true
+versioned = true
+
+[php.managers.homebrew]
+pattern = "php@{version}"
+service_name = "php@{version}"
+tap = "shivammathur/php"
+available_versions = ["8.1", "8.2", "8.3", "8.4"]
+binary = "php"
+binary_path_template = "{prefix}/opt/php@{version}/bin"
+config_path_template = "{prefix}/etc/php/{version}"
+
+[php.managers.apt]
+pattern = "php{version}-fpm"
+service_name = "php{version}-fpm"
+ppa = "ondrej/php"
+available_versions = ["8.1", "8.2", "8.3", "8.4"]
+binary = "php{version}"
+binary_path_template = "/usr/bin"
+config_path_template = "/etc/php/{version}"
+additional_packages = [
+    "php{version}-cli",
+    "php{version}-common",
+    "php{version}-mysql",
+    "php{version}-xml",
+    "php{version}-curl",
+    "php{version}-mbstring",
+    "php{version}-zip",
+    "php{version}-gd",
+    "php{version}-bcmath",
+]
+
+[php.managers.pacman]
+pattern = "php"
+service_name = "php-fpm"
+available_versions = ["latest"]
+binary = "php"
+binary_path_template = "/usr/bin"
+config_path_template = "/etc/php"
+
+[php.managers.winget]
+pattern = "PHP.PHP.{version}"
+available_versions = ["8.1", "8.2", "8.3", "8.4"]
+binary = "php.exe"
+
+# ── MySQL ──────────────────────────────────────────
+
+[mysql]
+description = "MySQL database server"
+category = "database"
+has_service = true
+versioned = true
+
+[mysql.managers.homebrew]
+pattern = "mysql@{version}"
+service_name = "mysql@{version}"
+available_versions = ["8.0", "8.4"]
+binary = "mysql"
+binary_path_template = "{prefix}/opt/mysql@{version}/bin"
+config_path_template = "{prefix}/etc/my.cnf"
+
+[mysql.managers.apt]
+pattern = "mysql-server"
+service_name = "mysql"
+available_versions = ["8.0"]
+binary = "mysql"
+binary_path_template = "/usr/bin"
+config_path_template = "/etc/mysql"
+
+[mysql.managers.pacman]
+pattern = "mariadb"
+service_name = "mariadb"
+available_versions = ["latest"]
+binary = "mysql"
+binary_path_template = "/usr/bin"
+config_path_template = "/etc/my.cnf.d"
+
+# ── PostgreSQL ─────────────────────────────────────
+
+[postgresql]
+description = "PostgreSQL database server"
+category = "database"
+has_service = true
+versioned = true
+
+[postgresql.managers.homebrew]
+pattern = "postgresql@{version}"
+service_name = "postgresql@{version}"
+available_versions = ["15", "16", "17"]
+binary = "psql"
+binary_path_template = "{prefix}/opt/postgresql@{version}/bin"
+
+[postgresql.managers.apt]
+pattern = "postgresql-{version}"
+service_name = "postgresql"
+available_versions = ["15", "16", "17"]
+binary = "psql"
+binary_path_template = "/usr/bin"
+config_path_template = "/etc/postgresql/{version}/main"
+
+[postgresql.managers.pacman]
+pattern = "postgresql"
+service_name = "postgresql"
+available_versions = ["latest"]
+binary = "psql"
+binary_path_template = "/usr/bin"
+
+# ── Nginx ──────────────────────────────────────────
+
+[nginx]
+description = "Nginx web server"
+category = "webserver"
+has_service = true
+versioned = false
+
+[nginx.managers.homebrew]
+pattern = "nginx"
+service_name = "nginx"
+binary = "nginx"
+binary_path_template = "{prefix}/opt/nginx/bin"
+config_path_template = "{prefix}/etc/nginx"
+
+[nginx.managers.apt]
+pattern = "nginx"
+service_name = "nginx"
+binary = "nginx"
+binary_path_template = "/usr/sbin"
+config_path_template = "/etc/nginx"
+
+[nginx.managers.pacman]
+pattern = "nginx"
+service_name = "nginx"
+binary = "nginx"
+binary_path_template = "/usr/bin"
+config_path_template = "/etc/nginx"
+
+# ── Redis ──────────────────────────────────────────
+
+[redis]
+description = "Redis in-memory data store"
+category = "cache"
+has_service = true
+versioned = false
+
+[redis.managers.homebrew]
+pattern = "redis"
+service_name = "redis"
+binary = "redis-server"
+binary_path_template = "{prefix}/opt/redis/bin"
+
+[redis.managers.apt]
+pattern = "redis-server"
+service_name = "redis-server"
+binary = "redis-server"
+binary_path_template = "/usr/bin"
+
+[redis.managers.pacman]
+pattern = "redis"
+service_name = "redis"
+binary = "redis-server"
+binary_path_template = "/usr/bin"
+
+# ── Memcached ──────────────────────────────────────
+
+[memcached]
+description = "Memcached caching system"
+category = "cache"
+has_service = true
+versioned = false
+
+[memcached.managers.homebrew]
+pattern = "memcached"
+service_name = "memcached"
+binary = "memcached"
+
+[memcached.managers.apt]
+pattern = "memcached"
+service_name = "memcached"
+binary = "memcached"
+
+[memcached.managers.pacman]
+pattern = "memcached"
+service_name = "memcached"
+binary = "memcached"
+
+# ── Node.js ────────────────────────────────────────
+
+[node]
+description = "Node.js runtime"
+category = "language"
+has_service = false
+versioned = true
+
+[node.managers.homebrew]
+pattern = "node@{version}"
+available_versions = ["18", "20", "22"]
+binary = "node"
+binary_path_template = "{prefix}/opt/node@{version}/bin"
+
+[node.managers.apt]
+pattern = "nodejs"
+available_versions = ["18", "20", "22"]
+binary = "node"
+binary_path_template = "/usr/bin"
+
+[node.managers.pacman]
+pattern = "nodejs"
+available_versions = ["latest"]
+binary = "node"
+binary_path_template = "/usr/bin"
+
+# ── Composer ───────────────────────────────────────
+
+[composer]
+description = "PHP dependency manager"
+category = "tool"
+has_service = false
+versioned = false
+
+[composer.managers.homebrew]
+pattern = "composer"
+binary = "composer"
+
+[composer.managers.apt]
+pattern = "composer"
+binary = "composer"
+
+[composer.managers.pacman]
+pattern = "composer"
+binary = "composer"
+
+# ── Mailpit ────────────────────────────────────────
+
+[mailpit]
+description = "Email testing tool (SMTP capture + web UI)"
+category = "mail"
+has_service = true
+versioned = false
+
+[mailpit.managers.homebrew]
+pattern = "mailpit"
+service_name = "mailpit"
+binary = "mailpit"
+
+[mailpit.managers.apt]
+pattern = "mailpit"
+service_name = "mailpit"
+binary = "mailpit"
+
+[mailpit.managers.pacman]
+pattern = "mailpit"
+service_name = "mailpit"
+binary = "mailpit"
+
+# ── dnsmasq ────────────────────────────────────────
+
+[dnsmasq]
+description = "DNS forwarder for .test TLD"
+category = "dns"
+has_service = true
+versioned = false
+
+[dnsmasq.managers.homebrew]
+pattern = "dnsmasq"
+service_name = "dnsmasq"
+binary = "dnsmasq"
+config_path_template = "{prefix}/etc/dnsmasq.conf"
+
+[dnsmasq.managers.apt]
+pattern = "dnsmasq"
+service_name = "dnsmasq"
+binary = "dnsmasq"
+config_path_template = "/etc/dnsmasq.conf"
+
+[dnsmasq.managers.pacman]
+pattern = "dnsmasq"
+service_name = "dnsmasq"
+binary = "dnsmasq"
+config_path_template = "/etc/dnsmasq.conf"
+
+# ── mkcert ─────────────────────────────────────────
+
+[mkcert]
+description = "Local CA for trusted dev certificates"
+category = "tool"
+has_service = false
+versioned = false
+
+[mkcert.managers.homebrew]
+pattern = "mkcert"
+binary = "mkcert"
+
+[mkcert.managers.apt]
+pattern = "mkcert"
+binary = "mkcert"
+
+[mkcert.managers.pacman]
+pattern = "mkcert"
+binary = "mkcert"

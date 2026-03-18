@@ -1,0 +1,26 @@
+[package]
+name = "macenv"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform local development environment manager"
+license = "MIT"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["process", "fs", "io-util"] }
+async-trait = "0.1"
+thiserror = "2"
+toml = "0.8"
+dirs-next = "2"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[lib]
+name = "macenv_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
