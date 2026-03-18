@@ -104,6 +104,6 @@
 
   .service-card__actions .btn-danger:hover:not(:disabled) {
     background: var(--color-danger);
-    color: white;
+    color: var(--color-text-on-accent);
   }
 </style>

@@ -78,7 +78,7 @@
     flex: 1;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    background: white;
+    background: var(--color-bg-secondary);
     min-height: 400px;
   }
 

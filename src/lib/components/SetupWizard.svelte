@@ -288,12 +288,12 @@
 
   .wizard__step--active {
     background: var(--color-accent);
-    color: white;
+    color: var(--color-text-on-accent);
   }
 
   .wizard__step--done {
     background: var(--color-success);
-    color: white;
+    color: var(--color-text-on-accent);
   }
 
   .wizard__content {

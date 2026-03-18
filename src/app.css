@@ -19,6 +19,7 @@
   --color-text-secondary: #8888a0;
   --color-text-muted: #555570;
   --color-text-inverse: #0a0a0f;
+  --color-text-on-accent: #ffffff;
 
   /* Accent — purple (primary actions) */
   --color-accent: #8b5cf6;
@@ -104,6 +105,7 @@
   --color-text-secondary: #6b6b80;
   --color-text-muted: #9999aa;
   --color-text-inverse: #ffffff;
+  --color-text-on-accent: #ffffff;
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -183,7 +185,7 @@ button:disabled {
 
 .btn-primary {
   background: var(--color-accent);
-  color: white;
+  color: var(--color-text-on-accent);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -207,7 +209,7 @@ button:disabled {
 
 .btn-danger:hover:not(:disabled) {
   background: var(--color-danger);
-  color: white;
+  color: var(--color-text-on-accent);
 }
 
 /* Status dot */
@@ -251,6 +253,31 @@ input, select {
 
 input:focus, select:focus {
   border-color: var(--color-border-focus);
+}
+
+select option {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--color-accent);
+  width: 16px;
+  height: 16px;
+}
+
+::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Inline code */
+code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  background: var(--color-bg-tertiary);
+  padding: 2px var(--space-1);
+  border-radius: 3px;
 }
 
 /* Mono text */
