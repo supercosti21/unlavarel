@@ -5,9 +5,13 @@
   let loading = $state(true);
   let saving = $state(false);
   let message = $state(null);
+  let healthResult = $state(null);
+  let healthLoading = $state(false);
+  let phpVersions = $state([]);
 
   $effect(() => {
     loadSettings();
+    loadPhpVersions();
   });
 
   async function loadSettings() {
@@ -18,6 +22,25 @@
       message = { type: "error", text: String(e) };
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadPhpVersions() {
+    try {
+      phpVersions = await invoke("get_php_versions");
+    } catch {
+      phpVersions = [];
+    }
+  }
+
+  async function runHealthCheck() {
+    healthLoading = true;
+    try {
+      healthResult = await invoke("health_check");
+    } catch (e) {
+      message = { type: "error", text: String(e) };
+    } finally {
+      healthLoading = false;
     }
   }
 
@@ -67,10 +90,13 @@
         <div class="settings__field">
           <label for="php">Default PHP Version</label>
           <select id="php" bind:value={settings.default_php_version}>
-            <option value="8.1">PHP 8.1</option>
-            <option value="8.2">PHP 8.2</option>
-            <option value="8.3">PHP 8.3</option>
-            <option value="8.4">PHP 8.4</option>
+            {#if phpVersions.length > 0}
+              {#each phpVersions as ver}
+                <option value={ver.version}>PHP {ver.version}{ver.active ? " (active)" : ""}</option>
+              {/each}
+            {:else}
+              <option value={settings.default_php_version}>PHP {settings.default_php_version}</option>
+            {/if}
           </select>
         </div>
         <div class="settings__field">
@@ -106,6 +132,33 @@
           {saving ? "Saving..." : "Save Settings"}
         </button>
       </div>
+
+      <section class="settings__section">
+        <div class="settings__health-header">
+          <h3>Health Check</h3>
+          <button class="btn-ghost" onclick={runHealthCheck} disabled={healthLoading}>
+            {healthLoading ? "Checking..." : "Run Check"}
+          </button>
+        </div>
+        {#if healthResult}
+          <div class="settings__health">
+            {#each healthResult.checks as check}
+              <div class="settings__health-row">
+                <span class="status-dot status-dot--{check.status === 'ok' ? 'running' : check.status === 'missing' ? 'stopped' : 'error'}"></span>
+                <span class="settings__health-name">{check.name}</span>
+                <span class="settings__health-detail">{check.detail}</span>
+              </div>
+            {/each}
+            <div class="settings__health-summary">
+              {#if healthResult.all_ok}
+                <span class="badge badge--success">All checks passed</span>
+              {:else}
+                <span class="badge badge--warning">Some dependencies missing</span>
+              {/if}
+            </div>
+          </div>
+        {/if}
+      </section>
     </div>
   {/if}
 </div>
@@ -188,6 +241,48 @@
   }
 
   .settings__actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .settings__health-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .settings__health {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .settings__health-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+    font-size: var(--text-sm);
+  }
+
+  .settings__health-name {
+    font-weight: var(--font-medium);
+    min-width: 120px;
+  }
+
+  .settings__health-detail {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .settings__health-summary {
+    padding-top: var(--space-3);
     display: flex;
     justify-content: flex-end;
   }

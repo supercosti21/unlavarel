@@ -172,23 +172,29 @@
           <label>Database</label>
           <select bind:value={database}>
             <option value="mysql">MySQL</option>
+            <option value="mariadb">MariaDB (MySQL-compatible, default on Arch)</option>
             <option value="postgresql">PostgreSQL</option>
+            <option value="none">None (skip database)</option>
           </select>
         </div>
 
+        {#if database !== "none"}
         <div class="wizard__field">
           <label>Database Version</label>
           <select bind:value={dbVersion}>
             {#if database === "mysql"}
               <option value="8.0">MySQL 8.0</option>
               <option value="8.4">MySQL 8.4</option>
-            {:else}
+            {:else if database === "mariadb"}
+              <option value="">MariaDB (latest)</option>
+            {:else if database === "postgresql"}
               <option value="15">PostgreSQL 15</option>
               <option value="16">PostgreSQL 16</option>
               <option value="17">PostgreSQL 17</option>
             {/if}
           </select>
         </div>
+        {/if}
 
         <div class="wizard__field">
           <label>Extras</label>

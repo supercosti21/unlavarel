@@ -23,7 +23,7 @@ use services::{
     start_all_services, stop_all_services, get_service_logs,
 };
 use projects::{get_projects, add_project, remove_project};
-use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete};
+use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete, health_check};
 use quickapp::{get_templates, create_app};
 use php::{get_php_versions, switch_php_version, get_php_extensions, toggle_php_extension};
 use logs::{watch_service_logs, unwatch_service_logs};
@@ -56,6 +56,7 @@ pub fn run() {
             bootstrap_package_manager,
             install_stack,
             mark_setup_complete,
+            health_check,
             // Quick app
             get_templates,
             create_app,
