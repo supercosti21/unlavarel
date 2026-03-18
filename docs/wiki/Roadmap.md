@@ -8,45 +8,54 @@
 - [x] ServiceManager trait with brew services, systemd implementations
 - [x] Package registry (packages.toml) with cross-platform name mapping
 - [x] Dashboard UI with ServiceCards
-- [x] Project management (add/remove)
+- [x] Project management (add/remove with vhost + SSL + DB pipeline)
 - [x] Terminal/log viewer component
 - [x] Mail viewer component (Mailpit iframe)
 - [x] CSS design system (dark/light, Linear-inspired)
 - [x] GitHub Actions CI/CD (macOS/Linux/Windows)
+- [x] Setup wizard (first-run experience)
+- [x] Nginx vhost generation (per-OS templates, PHP-FPM socket detection)
+- [x] dnsmasq configuration automation (macOS resolver + Linux systemd-resolved)
+- [x] mkcert SSL certificate generation (local CA + per-domain certs)
+- [x] Auto database creation for new projects (MySQL/MariaDB/PostgreSQL)
+- [x] PHP sendmail_path configuration for Mailpit (multi-version, all distros)
+- [x] Version detection for installed services (binary parsing)
+- [x] Quick app creation (Laravel, Laravel+Filament, WordPress, Symfony, Blank)
+- [x] Multi-version PHP switching (Homebrew unlink/link, apt update-alternatives)
+- [x] PHP extension toggle (enable/disable in php.ini, Xdebug etc.)
+- [x] System tray integration (show/hide, start/stop all, quit)
+- [x] Start/Stop All services
+- [x] Service log viewer (per-service, journalctl/brew logs)
+- [x] Restart service command
+- [x] Database viewer component (connection details + Adminer embed)
 
-### Remaining
-- [ ] Setup wizard (first-run experience)
-- [ ] Actual service start/stop integration (test on macOS)
-- [ ] Nginx vhost generation
-- [ ] dnsmasq configuration automation
-- [ ] mkcert SSL certificate generation
-- [ ] Auto database creation for new projects
-- [ ] PHP sendmail_path configuration for Mailpit
-- [ ] Version detection for installed services
-- [ ] Quick app creation (Laravel, WordPress)
+### Remaining for v0.1.0 Release
+- [ ] End-to-end testing on macOS with real Homebrew
+- [ ] End-to-end testing on Ubuntu with real apt
+- [ ] Placeholder icon replaced with real MacEnv logo
+- [ ] Error handling UX polish (user-friendly error messages)
 
-## v0.2.0 — Core Features
+## v0.2.0 — Polish & UX
 
-- [ ] Multi-version PHP switching (UI + backend)
-- [ ] Multi-version database switching
-- [ ] Database viewer (embedded Adminer or custom)
-- [ ] PHP extension toggle (enable/disable Xdebug, etc.)
-- [ ] php.ini quick editor
-- [ ] Nginx config editor
-- [ ] Real-time log streaming via Tauri events
-- [ ] System tray integration
-- [ ] Start/stop all services button
+- [ ] Real-time log streaming via Tauri events (push, not poll)
+- [ ] php.ini quick editor (open in default editor or inline)
+- [ ] Nginx config editor (syntax highlighting)
 - [ ] Auto-start on system boot option
+- [ ] Settings page (theme toggle, default PHP version, project root path)
+- [ ] Keyboard shortcuts
+- [ ] Open project in VS Code / terminal
+- [ ] Import existing projects (scan directory)
+- [ ] Project search/filter
 
 ## v0.3.0 — Advanced Features
 
-- [ ] Project profiles (save/restore stack configurations)
+- [ ] Project profiles (save/restore stack configurations per project)
 - [ ] Sharing via ngrok/cloudflared (1-click public URL)
 - [ ] Project snapshots (files + database backup)
-- [ ] Auto-backup scheduling
-- [ ] Import existing projects (scan directory)
+- [ ] Auto-backup scheduling (daily/weekly)
 - [ ] Dump collector (Laravel `dd()` viewer)
-- [ ] Advanced log viewer with search/filter
+- [ ] Advanced log viewer with search/filter/tail
+- [ ] Multi-version database switching
 
 ## v0.4.0 — Extended Services
 
@@ -58,31 +67,29 @@
 - [ ] Bun/Deno runtime support
 - [ ] Docker container proxy
 
-## v0.5.0 — Polish
+## v0.5.0 — Enterprise & Community
 
-- [ ] Settings UI (theme toggle, paths, preferences)
-- [ ] Keyboard shortcuts
 - [ ] Multilingual interface
 - [ ] Auto-update mechanism (Tauri updater)
-- [ ] System resource monitoring
-- [ ] Performance profiling tools
+- [ ] System resource monitoring (CPU, RAM, disk per service)
 - [ ] Self-diagnostic tools
+- [ ] Plugin system for custom services
+- [ ] Community service registry
 
 ## v1.0.0 — Stable Release
 
-- [ ] Feature parity with Laragon
-- [ ] Comprehensive test suite
+- [ ] Full Laragon feature parity + cross-platform
+- [ ] Comprehensive test suite (unit + integration)
 - [ ] macOS code signing + notarization
 - [ ] Windows code signing
 - [ ] Flatpak / AUR packaging
-- [ ] Full documentation and tutorials
-- [ ] Community feedback integration
+- [ ] Full documentation and video tutorials
 
 ## Future Ideas
 
-- Team configuration sharing (like Herd's `herd.yml`)
-- Plugin system for custom services
+- Team configuration sharing (shared `macenv.yml` per project)
 - AI assistant integration (Ollama for local LLMs)
-- Remote deployment integration
-- Mobile testing (LAN access configuration)
-- VS Code extension
+- Remote deployment integration (Forge, Ploi, Envoyer)
+- Mobile testing (LAN device access configuration)
+- VS Code extension for MacEnv controls
+- Performance profiling tools (Xdebug profiler viewer)
