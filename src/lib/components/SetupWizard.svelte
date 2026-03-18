@@ -16,6 +16,7 @@
   let dbVersion = $state("8.4");
   let extras = $state(["redis", "mailpit", "node"]);
   let nodeVersion = $state("22");
+  let projectRoot = $state("");
 
   $effect(() => {
     checkSetup();
@@ -25,6 +26,13 @@
     loading = true;
     try {
       setupState = await invoke("check_setup");
+      // Load default project root from settings
+      try {
+        const settings = await invoke("get_settings");
+        projectRoot = settings.project_root;
+      } catch {
+        projectRoot = "";
+      }
     } catch (e) {
       error = String(e);
     } finally {
@@ -77,6 +85,14 @@
   }
 
   async function finishSetup() {
+    // Save project root to settings
+    if (projectRoot) {
+      try {
+        const settings = await invoke("get_settings");
+        settings.project_root = projectRoot;
+        await invoke("save_settings", { settings });
+      } catch {}
+    }
     await invoke("mark_setup_complete");
     onComplete();
   }
@@ -205,6 +221,12 @@
             </select>
           </div>
         {/if}
+
+        <div class="wizard__field">
+          <label for="projectroot">Projects Directory</label>
+          <input id="projectroot" type="text" bind:value={projectRoot} placeholder="/home/user/projects" />
+          <span class="wizard__hint">Where MacEnv will create new projects</span>
+        </div>
 
         <div class="wizard__actions">
           <button class="btn-ghost" onclick={() => (step = 1)}>Back</button>

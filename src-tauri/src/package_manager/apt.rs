@@ -20,7 +20,8 @@ impl Apt {
     }
 
     async fn run_apt(&self, args: &[&str]) -> Result<String> {
-        let output = Command::new("apt-get")
+        let output = Command::new("pkexec")
+            .arg("apt-get")
             .args(args)
             .env("DEBIAN_FRONTEND", "noninteractive")
             .output()

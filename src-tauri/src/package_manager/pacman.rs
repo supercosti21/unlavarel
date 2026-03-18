@@ -19,12 +19,26 @@ impl Pacman {
         Self
     }
 
+    /// Run pacman with sudo for operations that need it (-S, -R, -Sy).
     async fn run_pacman(&self, args: &[&str]) -> Result<String> {
-        let output = Command::new("pacman")
-            .args(args)
-            .arg("--noconfirm")
-            .output()
-            .await?;
+        let needs_sudo = args.first().is_some_and(|a| {
+            *a == "-S" || *a == "-R" || *a == "-Sy" || *a == "-Syu"
+        });
+
+        let output = if needs_sudo {
+            Command::new("pkexec")
+                .arg("pacman")
+                .args(args)
+                .arg("--noconfirm")
+                .output()
+                .await?
+        } else {
+            Command::new("pacman")
+                .args(args)
+                .arg("--noconfirm")
+                .output()
+                .await?
+        };
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
