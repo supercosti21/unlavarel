@@ -8,10 +8,13 @@
   let healthResult = $state(null);
   let healthLoading = $state(false);
   let phpVersions = $state([]);
+  let installedServices = $state([]);
+  let uninstalling = $state(null);
 
   $effect(() => {
     loadSettings();
     loadPhpVersions();
+    loadInstalledServices();
   });
 
   async function loadSettings() {
@@ -30,6 +33,30 @@
       phpVersions = await invoke("get_php_versions");
     } catch {
       phpVersions = [];
+    }
+  }
+
+  async function loadInstalledServices() {
+    try {
+      installedServices = await invoke("get_cached_services");
+      if (installedServices.length === 0) {
+        installedServices = await invoke("discover_services");
+      }
+    } catch {
+      installedServices = [];
+    }
+  }
+
+  async function uninstallPkg(id) {
+    uninstalling = id;
+    try {
+      const result = await invoke("uninstall_package", { packageId: id });
+      message = { type: "success", text: result };
+      await loadInstalledServices();
+    } catch (e) {
+      message = { type: "error", text: String(e) };
+    } finally {
+      uninstalling = null;
     }
   }
 
@@ -159,6 +186,32 @@
           </div>
         {/if}
       </section>
+
+      <section class="settings__section">
+        <h3>Installed Packages</h3>
+        <p class="settings__hint">Manage packages installed by MacEnv. Uninstalling will stop the service and remove the package.</p>
+        {#if installedServices.length > 0}
+          <div class="settings__packages">
+            {#each installedServices as svc}
+              <div class="settings__package-row">
+                <div class="settings__package-info">
+                  <span class="settings__package-name">{svc.display_name}</span>
+                  <span class="settings__package-cat badge badge--neutral">{svc.category}</span>
+                </div>
+                <button
+                  class="btn-danger"
+                  onclick={() => uninstallPkg(svc.id)}
+                  disabled={uninstalling === svc.id}
+                >
+                  {uninstalling === svc.id ? "Removing..." : "Uninstall"}
+                </button>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="settings__muted">No packages discovered yet. Run a Health Check first.</p>
+        {/if}
+      </section>
     </div>
   {/if}
 </div>
@@ -285,5 +338,47 @@
     padding-top: var(--space-3);
     display: flex;
     justify-content: flex-end;
+  }
+
+  .settings__hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .settings__muted {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: var(--space-4);
+  }
+
+  .settings__packages {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .settings__package-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-subtle);
+  }
+
+  .settings__package-row:hover {
+    background: var(--color-bg-hover);
+  }
+
+  .settings__package-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .settings__package-name {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
   }
 </style>
