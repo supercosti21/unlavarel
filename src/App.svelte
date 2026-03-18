@@ -1,6 +1,7 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
+  import Titlebar from "./lib/components/Titlebar.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import ServiceCard from "./lib/components/ServiceCard.svelte";
   import SiteList from "./lib/components/SiteList.svelte";
@@ -132,21 +133,29 @@
 </script>
 
 {#if checkingSetup}
-  <div class="app app--loading">
-    <div class="app__splash">
-      <h1>MacEnv</h1>
-      <p>Loading...</p>
+  <div class="app app--vertical">
+    <Titlebar />
+    <div class="app--loading">
+      <div class="app__splash">
+        <h1>MacEnv</h1>
+        <p>Loading...</p>
+      </div>
     </div>
   </div>
 
 {:else if showSetup}
-  <div class="app app--setup">
-    <SetupWizard onComplete={handleSetupComplete} />
+  <div class="app app--vertical">
+    <Titlebar />
+    <div class="app--setup">
+      <SetupWizard onComplete={handleSetupComplete} />
+    </div>
   </div>
 
 {:else}
-  <div class="app">
-    <Sidebar {activePage} onNavigate={handleNavigate} />
+  <div class="app app--vertical">
+    <Titlebar />
+    <div class="app__body">
+      <Sidebar {activePage} onNavigate={handleNavigate} />
 
     <div class="app__main">
       <div class="app__content">
@@ -268,6 +277,7 @@
 
       <StatusBar services={servicesStore.services} />
     </div>
+    </div>
   </div>
 
   {#if showQuickApp}
@@ -280,16 +290,29 @@
 
 <style>
   .app {
-    display: flex;
     height: 100%;
+  }
+
+  .app--vertical {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .app__body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
   }
 
   .app--loading,
   .app--setup {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--color-bg-primary);
+    overflow-y: auto;
   }
 
   .app__splash {
