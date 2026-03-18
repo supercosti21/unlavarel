@@ -6,11 +6,14 @@ use super::{ServiceInfo, ServiceManager, ServiceStatus};
 
 const MANAGED_SERVICES: &[(&str, &str)] = &[
     ("php", "php-fpm"),
-    ("mysql", "mysqld"),
+    ("mysql", "mariadb"),   // Arch uses mariadb
+    ("mariadb", "mariadb"),
     ("nginx", "nginx"),
     ("redis", "redis"),
     ("memcached", "memcached"),
     ("dnsmasq", "dnsmasq"),
+    ("mailpit", "mailpit"),
+    ("postgresql", "postgresql"),
 ];
 
 pub struct Systemd;
@@ -43,25 +46,77 @@ impl Systemd {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
+    /// Run systemctl with pkexec for operations that need root
+    async fn systemctl_elevated(&self, args: &[&str]) -> Result<String> {
+        let output = Command::new("pkexec")
+            .arg("systemctl")
+            .args(args)
+            .output()
+            .await?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            Err(MacEnvError::ServiceOperationFailed {
+                service: args.last().unwrap_or(&"unknown").to_string(),
+                op: args.first().unwrap_or(&"unknown").to_string(),
+                reason: stderr,
+            })
+        }
+    }
+
     async fn detect_version(&self, service: &str) -> String {
         let binary = match service {
             "php" => "php",
-            "mysql" => "mysql",
+            "mysql" | "mariadb" => "mysql",
             "nginx" => "nginx",
             "redis" => "redis-server",
+            "postgresql" => "psql",
             _ => return String::new(),
         };
 
         let output = Command::new(binary).arg("--version").output().await;
         match output {
-            Ok(o) if o.status.success() => {
-                String::from_utf8_lossy(&o.stdout)
-                    .lines()
-                    .next()
-                    .unwrap_or("")
-                    .to_string()
+            Ok(o) => {
+                let text = if o.status.success() {
+                    String::from_utf8_lossy(&o.stdout).to_string()
+                } else {
+                    String::from_utf8_lossy(&o.stderr).to_string()
+                };
+                text.lines().next().unwrap_or("").trim().to_string()
             }
             _ => String::new(),
+        }
+    }
+
+    /// Initialize MariaDB data directory if it hasn't been done yet
+    async fn ensure_mariadb_initialized(&self) -> Result<()> {
+        let data_dir = std::path::PathBuf::from("/var/lib/mysql");
+
+        // If the data dir exists and has files, it's already initialized
+        if data_dir.exists() {
+            if let Ok(mut entries) = tokio::fs::read_dir(&data_dir).await {
+                if entries.next_entry().await.ok().flatten().is_some() {
+                    return Ok(()); // Already has data
+                }
+            }
+        }
+
+        // Run mariadb-install-db
+        let output = Command::new("pkexec")
+            .args(["mariadb-install-db", "--user=mysql", "--basedir=/usr", "--datadir=/var/lib/mysql"])
+            .output()
+            .await?;
+
+        if output.status.success() {
+            Ok(())
+        } else {
+            Err(MacEnvError::ServiceOperationFailed {
+                service: "mariadb".into(),
+                op: "initialize".into(),
+                reason: String::from_utf8_lossy(&output.stderr).into(),
+            })
         }
     }
 }
@@ -74,60 +129,36 @@ impl ServiceManager for Systemd {
 
     async fn start(&self, service: &str) -> Result<()> {
         let unit = self.resolve_unit_name(service);
-        let output = Command::new("systemctl")
-            .args(["start", unit])
-            .output()
-            .await?;
 
-        if output.status.success() {
-            Ok(())
-        } else {
-            Err(MacEnvError::ServiceOperationFailed {
-                service: service.into(),
-                op: "start".into(),
-                reason: String::from_utf8_lossy(&output.stderr).into(),
-            })
+        // Special handling: initialize MariaDB on first start
+        if unit == "mariadb" {
+            self.ensure_mariadb_initialized().await?;
         }
+
+        self.systemctl_elevated(&["start", unit]).await?;
+        Ok(())
     }
 
     async fn stop(&self, service: &str) -> Result<()> {
         let unit = self.resolve_unit_name(service);
-        let output = Command::new("systemctl")
-            .args(["stop", unit])
-            .output()
-            .await?;
-
-        if output.status.success() {
-            Ok(())
-        } else {
-            Err(MacEnvError::ServiceOperationFailed {
-                service: service.into(),
-                op: "stop".into(),
-                reason: String::from_utf8_lossy(&output.stderr).into(),
-            })
-        }
+        self.systemctl_elevated(&["stop", unit]).await?;
+        Ok(())
     }
 
     async fn restart(&self, service: &str) -> Result<()> {
         let unit = self.resolve_unit_name(service);
-        let output = Command::new("systemctl")
-            .args(["restart", unit])
-            .output()
-            .await?;
 
-        if output.status.success() {
-            Ok(())
-        } else {
-            Err(MacEnvError::ServiceOperationFailed {
-                service: service.into(),
-                op: "restart".into(),
-                reason: String::from_utf8_lossy(&output.stderr).into(),
-            })
+        if unit == "mariadb" {
+            self.ensure_mariadb_initialized().await?;
         }
+
+        self.systemctl_elevated(&["restart", unit]).await?;
+        Ok(())
     }
 
     async fn status(&self, service: &str) -> Result<ServiceInfo> {
         let unit = self.resolve_unit_name(service);
+        // status check doesn't need root
         let output = self.systemctl(&["is-active", unit]).await?;
         let version = self.detect_version(service).await;
 
@@ -138,7 +169,6 @@ impl ServiceManager for Systemd {
             _ => ServiceStatus::Unknown,
         };
 
-        // Try to get PID
         let pid_output = self.systemctl(&["show", "-p", "MainPID", unit]).await?;
         let pid = pid_output
             .trim()
@@ -157,7 +187,34 @@ impl ServiceManager for Systemd {
     async fn list_managed(&self) -> Result<Vec<ServiceInfo>> {
         let mut services = Vec::new();
 
-        for (canonical, _) in MANAGED_SERVICES {
+        for (canonical, unit) in MANAGED_SERVICES {
+            // Skip if the unit doesn't exist on this system
+            let exists = Command::new("systemctl")
+                .args(["cat", unit])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .output()
+                .await
+                .map(|o| o.status.success())
+                .unwrap_or(false);
+
+            // Also check if the binary exists
+            let binary_exists = match *canonical {
+                "php" => which("php").await,
+                "mysql" | "mariadb" => which("mysql").await || which("mariadb").await,
+                "nginx" => which("nginx").await,
+                "redis" => which("redis-server").await,
+                "memcached" => which("memcached").await,
+                "dnsmasq" => which("dnsmasq").await,
+                "mailpit" => which("mailpit").await,
+                "postgresql" => which("psql").await,
+                _ => false,
+            };
+
+            if !exists && !binary_exists {
+                continue; // Skip services that aren't installed
+            }
+
             let info = self.status(canonical).await.unwrap_or(ServiceInfo {
                 name: canonical.to_string(),
                 status: ServiceStatus::Stopped,
@@ -173,10 +230,21 @@ impl ServiceManager for Systemd {
     async fn logs(&self, service: &str, lines: usize) -> Result<String> {
         let unit = self.resolve_unit_name(service);
         let output = Command::new("journalctl")
-            .args(["-u", unit, "-n", &lines.to_string(), "--no-pager"])
+            .args(["-u", unit, "-n", &lines.to_string(), "--no-pager", "-o", "short-iso"])
             .output()
             .await?;
 
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
+}
+
+async fn which(cmd: &str) -> bool {
+    Command::new("which")
+        .arg(cmd)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
