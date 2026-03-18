@@ -3,21 +3,23 @@
 
   const appWindow = getCurrentWindow();
 
-  function minimize() {
-    appWindow.minimize();
+  async function minimize() {
+    await appWindow.minimize();
   }
 
-  function toggleMaximize() {
-    appWindow.toggleMaximize();
+  async function toggleMaximize() {
+    await appWindow.toggleMaximize();
   }
 
-  function close() {
-    appWindow.close();
+  async function close() {
+    await appWindow.close();
   }
 </script>
 
-<header class="titlebar" data-tauri-drag-region>
-  <span class="titlebar__title" data-tauri-drag-region>MacEnv</span>
+<header class="titlebar">
+  <div class="titlebar__drag" data-tauri-drag-region>
+    <span class="titlebar__title" data-tauri-drag-region>MacEnv</span>
+  </div>
   <div class="titlebar__controls">
     <button class="titlebar__btn" onclick={minimize} aria-label="Minimize">
       <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
@@ -39,10 +41,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 var(--space-4);
     flex-shrink: 0;
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  .titlebar__drag {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding-left: var(--space-4);
   }
 
   .titlebar__title {
@@ -50,22 +59,23 @@
     font-weight: var(--font-semibold);
     color: var(--color-text-secondary);
     letter-spacing: 0.02em;
+    pointer-events: none;
   }
 
   .titlebar__controls {
     display: flex;
-    gap: 2px;
+    height: 100%;
   }
 
   .titlebar__btn {
-    width: 28px;
-    height: 28px;
+    width: 46px;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     background: transparent;
     border: none;
-    border-radius: var(--radius-sm);
+    border-radius: 0;
     color: var(--color-text-muted);
     cursor: pointer;
     padding: 0;
