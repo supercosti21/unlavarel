@@ -188,12 +188,12 @@
 
             <div class="dashboard__logs">
               <div class="dashboard__log-tabs">
-                {#each servicesStore.services as svc}
+                {#each servicesStore.services.filter(s => s.has_service !== false) as svc}
                   <button
                     class="dashboard__log-tab"
-                    class:dashboard__log-tab--active={activeLogService === svc.name}
-                    onclick={() => watchLogs(svc.name)}
-                  >{svc.name}</button>
+                    class:dashboard__log-tab--active={activeLogService === (svc.id || svc.name)}
+                    onclick={() => watchLogs(svc.id || svc.name)}
+                  >{svc.id || svc.name}</button>
                 {/each}
               </div>
               <Terminal
@@ -256,12 +256,12 @@
               <h2>Service Logs</h2>
             </header>
             <div class="dashboard__log-tabs">
-              {#each servicesStore.services as svc}
+              {#each servicesStore.services.filter(s => s.has_service !== false) as svc}
                 <button
                   class="dashboard__log-tab"
-                  class:dashboard__log-tab--active={activeLogService === svc.name}
-                  onclick={() => watchLogs(svc.name)}
-                >{svc.name}</button>
+                  class:dashboard__log-tab--active={activeLogService === (svc.id || svc.name)}
+                  onclick={() => watchLogs(svc.id || svc.name)}
+                >{svc.id || svc.name}</button>
               {/each}
             </div>
             <Terminal

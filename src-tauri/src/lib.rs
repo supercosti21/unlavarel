@@ -3,6 +3,7 @@ pub mod platform;
 pub mod package_manager;
 pub mod service_manager;
 pub mod registry;
+pub mod discovery;
 pub mod services;
 pub mod setup;
 pub mod vhosts;
@@ -18,9 +19,10 @@ pub mod settings;
 pub mod sharing;
 pub mod snapshots;
 
+use discovery::{discover_services, get_cached_services};
 use services::{
     get_services, start_service, stop_service, restart_service,
-    start_all_services, stop_all_services, get_service_logs,
+    start_all_services, stop_all_services, get_service_logs, uninstall_package,
 };
 use projects::{get_projects, add_project, remove_project};
 use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete, health_check};
@@ -39,6 +41,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Discovery
+            discover_services,
+            get_cached_services,
             // Services
             get_services,
             start_service,
@@ -47,6 +52,7 @@ pub fn run() {
             start_all_services,
             stop_all_services,
             get_service_logs,
+            uninstall_package,
             // Projects
             get_projects,
             add_project,

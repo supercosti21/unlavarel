@@ -17,23 +17,34 @@ function createServicesStore() {
     }
   }
 
-  async function toggleService(name, currentlyRunning) {
-    const command = currentlyRunning ? "stop_service" : "start_service";
+  async function refreshDiscovery() {
     try {
-      const updated = await invoke(command, { name });
-      services = services.map((s) => (s.name === name ? updated : s));
+      await invoke("discover_services");
+      await loadServices();
     } catch (e) {
       error = String(e);
     }
   }
 
-  async function restartService(name) {
+  async function toggleService(id, currentlyRunning) {
+    const command = currentlyRunning ? "stop_service" : "start_service";
     try {
-      await invoke("stop_service", { name });
-      const updated = await invoke("start_service", { name });
-      services = services.map((s) => (s.name === name ? updated : s));
+      const updated = await invoke(command, { name: id });
+      services = services.map((s) => (s.id === id ? updated : s));
     } catch (e) {
       error = String(e);
+      // Reload to get real state
+      await loadServices();
+    }
+  }
+
+  async function restartService(id) {
+    try {
+      const updated = await invoke("restart_service", { name: id });
+      services = services.map((s) => (s.id === id ? updated : s));
+    } catch (e) {
+      error = String(e);
+      await loadServices();
     }
   }
 
@@ -48,6 +59,7 @@ function createServicesStore() {
       return error;
     },
     loadServices,
+    refreshDiscovery,
     toggleService,
     restartService,
   };

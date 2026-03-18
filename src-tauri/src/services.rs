@@ -1,44 +1,71 @@
 use serde::{Deserialize, Serialize};
-use tokio::process::Command;
 
+use crate::discovery::{get_cached_services, InstalledService};
 use crate::service_manager::{create_service_manager, ServiceStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Service {
+    pub id: String,
     pub name: String,
     pub status: String,
     pub version: String,
+    pub category: String,
+    pub has_service: bool,
     pub pid: Option<u32>,
 }
 
 impl Service {
-    fn from_info(info: &crate::service_manager::ServiceInfo) -> Self {
-        let status = match &info.status {
-            ServiceStatus::Running => "Running".to_string(),
-            ServiceStatus::Stopped => "Stopped".to_string(),
-            ServiceStatus::Errored(e) => format!("Error: {}", e),
-            ServiceStatus::Unknown => "Unknown".to_string(),
-        };
-
+    fn from_discovery(svc: &InstalledService, status: &str, pid: Option<u32>) -> Self {
         Self {
-            name: info.name.clone(),
-            status,
-            version: info.version.clone(),
-            pid: info.pid,
+            id: svc.id.clone(),
+            name: svc.display_name.clone(),
+            status: status.to_string(),
+            version: svc.version.clone(),
+            category: svc.category.clone(),
+            has_service: svc.has_service,
+            pid,
         }
     }
 }
 
 #[tauri::command]
 pub async fn get_services() -> Result<Vec<Service>, String> {
-    let manager = create_service_manager();
-    let infos = manager.list_managed().await.map_err(|e| e.to_string())?;
-    let mut services: Vec<Service> = infos.iter().map(Service::from_info).collect();
+    let discovered = get_cached_services().await.unwrap_or_default();
 
-    // Enrich with version info from binaries
-    for svc in &mut services {
-        if svc.version.is_empty() {
-            svc.version = detect_version(&svc.name).await;
+    // If cache is empty, run discovery first
+    let discovered = if discovered.is_empty() {
+        crate::discovery::discover_services().await.unwrap_or_default()
+    } else {
+        discovered
+    };
+
+    let manager = create_service_manager();
+    let mut services = Vec::new();
+
+    for svc in &discovered {
+        if svc.has_service {
+            let info = manager.status(&svc.id).await;
+            match info {
+                Ok(info) => {
+                    let status = match &info.status {
+                        ServiceStatus::Running => "Running",
+                        ServiceStatus::Stopped => "Stopped",
+                        ServiceStatus::Errored(_e) => "Error",
+                        ServiceStatus::Unknown => "Stopped",
+                    };
+                    let status_str = match &info.status {
+                        ServiceStatus::Errored(e) => format!("Error: {}", e),
+                        _ => status.to_string(),
+                    };
+                    services.push(Service::from_discovery(svc, &status_str, info.pid));
+                }
+                Err(_) => {
+                    services.push(Service::from_discovery(svc, "Stopped", None));
+                }
+            }
+        } else {
+            // Tools like Composer, Node — no service, just show as installed
+            services.push(Service::from_discovery(svc, "Installed", None));
         }
     }
 
@@ -49,46 +76,98 @@ pub async fn get_services() -> Result<Vec<Service>, String> {
 pub async fn start_service(name: String) -> Result<Service, String> {
     let manager = create_service_manager();
     manager.start(&name).await.map_err(|e| e.to_string())?;
+
+    // Return updated status
+    let discovered = get_cached_services().await.unwrap_or_default();
+    let svc = discovered.iter().find(|s| s.id == name);
     let info = manager.status(&name).await.map_err(|e| e.to_string())?;
-    let mut svc = Service::from_info(&info);
-    if svc.version.is_empty() {
-        svc.version = detect_version(&svc.name).await;
+
+    let status = match &info.status {
+        ServiceStatus::Running => "Running".to_string(),
+        ServiceStatus::Errored(e) => format!("Error: {}", e),
+        _ => "Stopped".to_string(),
+    };
+
+    match svc {
+        Some(s) => Ok(Service::from_discovery(s, &status, info.pid)),
+        None => Ok(Service {
+            id: name.clone(),
+            name,
+            status,
+            version: String::new(),
+            category: String::new(),
+            has_service: true,
+            pid: info.pid,
+        }),
     }
-    Ok(svc)
 }
 
 #[tauri::command]
 pub async fn stop_service(name: String) -> Result<Service, String> {
     let manager = create_service_manager();
     manager.stop(&name).await.map_err(|e| e.to_string())?;
+
+    let discovered = get_cached_services().await.unwrap_or_default();
+    let svc = discovered.iter().find(|s| s.id == name);
     let info = manager.status(&name).await.map_err(|e| e.to_string())?;
-    let mut svc = Service::from_info(&info);
-    if svc.version.is_empty() {
-        svc.version = detect_version(&svc.name).await;
+
+    let status = match &info.status {
+        ServiceStatus::Running => "Running".to_string(),
+        ServiceStatus::Errored(e) => format!("Error: {}", e),
+        _ => "Stopped".to_string(),
+    };
+
+    match svc {
+        Some(s) => Ok(Service::from_discovery(s, &status, info.pid)),
+        None => Ok(Service {
+            id: name.clone(),
+            name,
+            status,
+            version: String::new(),
+            category: String::new(),
+            has_service: true,
+            pid: info.pid,
+        }),
     }
-    Ok(svc)
 }
 
 #[tauri::command]
 pub async fn restart_service(name: String) -> Result<Service, String> {
     let manager = create_service_manager();
     manager.restart(&name).await.map_err(|e| e.to_string())?;
+
+    let discovered = get_cached_services().await.unwrap_or_default();
+    let svc = discovered.iter().find(|s| s.id == name);
     let info = manager.status(&name).await.map_err(|e| e.to_string())?;
-    let mut svc = Service::from_info(&info);
-    if svc.version.is_empty() {
-        svc.version = detect_version(&svc.name).await;
+
+    let status = match &info.status {
+        ServiceStatus::Running => "Running".to_string(),
+        ServiceStatus::Errored(e) => format!("Error: {}", e),
+        _ => "Stopped".to_string(),
+    };
+
+    match svc {
+        Some(s) => Ok(Service::from_discovery(s, &status, info.pid)),
+        None => Ok(Service {
+            id: name.clone(),
+            name,
+            status,
+            version: String::new(),
+            category: String::new(),
+            has_service: true,
+            pid: info.pid,
+        }),
     }
-    Ok(svc)
 }
 
 #[tauri::command]
 pub async fn start_all_services() -> Result<Vec<Service>, String> {
     let manager = create_service_manager();
-    let infos = manager.list_managed().await.map_err(|e| e.to_string())?;
+    let discovered = get_cached_services().await.unwrap_or_default();
 
-    for info in &infos {
-        if info.status != ServiceStatus::Running {
-            manager.start(&info.name).await.ok(); // best effort
+    for svc in &discovered {
+        if svc.has_service {
+            manager.start(&svc.id).await.ok();
         }
     }
 
@@ -98,11 +177,11 @@ pub async fn start_all_services() -> Result<Vec<Service>, String> {
 #[tauri::command]
 pub async fn stop_all_services() -> Result<Vec<Service>, String> {
     let manager = create_service_manager();
-    let infos = manager.list_managed().await.map_err(|e| e.to_string())?;
+    let discovered = get_cached_services().await.unwrap_or_default();
 
-    for info in &infos {
-        if info.status == ServiceStatus::Running {
-            manager.stop(&info.name).await.ok();
+    for svc in &discovered {
+        if svc.has_service {
+            manager.stop(&svc.id).await.ok();
         }
     }
 
@@ -119,119 +198,23 @@ pub async fn get_service_logs(name: String, lines: Option<usize>) -> Result<Vec<
     Ok(log_text.lines().map(|l| l.to_string()).collect())
 }
 
-/// Detect the version of a service binary.
-async fn detect_version(service: &str) -> String {
-    let (binary, args) = if service == "php" || service.starts_with("php@") {
-        ("php", vec!["-v"])
-    } else if service == "mysql" || service.starts_with("mysql@") {
-        ("mysql", vec!["--version"])
-    } else if service == "mariadb" {
-        ("mariadb", vec!["--version"])
-    } else if service == "nginx" {
-        ("nginx", vec!["-v"])
-    } else if service == "redis" {
-        ("redis-server", vec!["--version"])
-    } else if service == "memcached" {
-        ("memcached", vec!["-h"])
-    } else if service == "postgresql" || service.starts_with("postgresql@") {
-        ("psql", vec!["--version"])
-    } else if service == "node" || service.starts_with("node@") {
-        ("node", vec!["--version"])
-    } else if service == "composer" {
-        ("composer", vec!["--version"])
-    } else if service == "dnsmasq" {
-        ("dnsmasq", vec!["--version"])
-    } else if service == "mailpit" {
-        ("mailpit", vec!["version"])
-    } else {
-        return String::new();
+/// Uninstall a package
+#[tauri::command]
+pub async fn uninstall_package(package_id: String) -> Result<String, String> {
+    let pm = crate::package_manager::create_package_manager();
+    let id = crate::package_manager::PackageId {
+        canonical: package_id.clone(),
+        version: None,
     };
 
-    let output = Command::new(binary).args(&args).output().await;
+    // Stop the service first if running
+    let manager = create_service_manager();
+    manager.stop(&package_id).await.ok();
 
-    match output {
-        Ok(o) => {
-            let text = if o.status.success() {
-                String::from_utf8_lossy(&o.stdout).to_string()
-            } else {
-                // Some tools (like nginx -v) write to stderr
-                String::from_utf8_lossy(&o.stderr).to_string()
-            };
-            // Extract just the version number from the first line
-            parse_version_string(service, text.trim())
-        }
-        Err(_) => String::new(),
-    }
-}
+    pm.uninstall(&id).await.map_err(|e| e.to_string())?;
 
-/// Parse version string from command output.
-fn parse_version_string(service: &str, output: &str) -> String {
-    let first_line = output.lines().next().unwrap_or("");
+    // Refresh discovery cache
+    crate::discovery::discover_services().await.ok();
 
-    match service {
-        s if s.starts_with("php") => {
-            // "PHP 8.3.14 (cli) ..." -> "8.3.14"
-            first_line
-                .split_whitespace()
-                .nth(1)
-                .unwrap_or(first_line)
-                .to_string()
-        }
-        s if s.contains("mysql") || s.contains("mariadb") => {
-            // "mysql  Ver 8.4.3 for ..." -> "8.4.3"
-            // or "mariadb  Ver 15.1 Distrib 11.6.2-MariaDB" -> "11.6.2"
-            first_line
-                .split("Distrib ")
-                .nth(1)
-                .and_then(|s| s.split(['-', ',']).next())
-                .or_else(|| {
-                    first_line
-                        .split("Ver ")
-                        .nth(1)
-                        .and_then(|s| s.split_whitespace().next())
-                })
-                .unwrap_or(first_line)
-                .to_string()
-        }
-        "nginx" => {
-            // "nginx version: nginx/1.27.3" -> "1.27.3"
-            first_line
-                .split('/')
-                .nth(1)
-                .unwrap_or(first_line)
-                .to_string()
-        }
-        "redis" => {
-            // "Redis server v=7.4.2 ..." -> "7.4.2"
-            first_line
-                .split("v=")
-                .nth(1)
-                .and_then(|s| s.split_whitespace().next())
-                .unwrap_or(first_line)
-                .to_string()
-        }
-        s if s.starts_with("postgresql") => {
-            // "psql (PostgreSQL) 17.2" -> "17.2"
-            first_line
-                .split(')')
-                .nth(1)
-                .map(|s| s.trim())
-                .unwrap_or(first_line)
-                .to_string()
-        }
-        s if s.starts_with("node") => {
-            // "v22.12.0" -> "22.12.0"
-            first_line.trim_start_matches('v').to_string()
-        }
-        "composer" => {
-            // "Composer version 2.8.4 2024-12-11 ..." -> "2.8.4"
-            first_line
-                .split("version ")
-                .nth(1)
-                .and_then(|s| s.split_whitespace().next())
-                .unwrap_or(first_line)
-                .to_string()
-        }
-        _ => first_line.to_string(),
-    }
+    Ok(format!("{} uninstalled", package_id))
 }

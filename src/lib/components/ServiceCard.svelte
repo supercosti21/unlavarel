@@ -2,24 +2,26 @@
   let { service, onToggle, onRestart } = $props();
 
   let isRunning = $derived(service.status === "Running");
+  let isInstalled = $derived(service.status === "Installed");
   let statusClass = $derived(
     service.status === "Running"
       ? "running"
-      : service.status === "Stopped"
+      : service.status === "Stopped" || service.status === "Installed"
         ? "stopped"
         : "error"
   );
   let toggling = $state(false);
+  let serviceKey = $derived(service.id || service.name);
 
   async function handleToggle() {
     toggling = true;
-    await onToggle(service.name, isRunning);
+    await onToggle(serviceKey, isRunning);
     toggling = false;
   }
 
   async function handleRestart() {
     toggling = true;
-    await onRestart(service.name);
+    await onRestart(serviceKey);
     toggling = false;
   }
 </script>
@@ -30,7 +32,7 @@
       <span class="status-dot status-dot--{statusClass}"></span>
       <h3 class="service-card__name">{service.name}</h3>
     </div>
-    <span class="badge badge--{statusClass === 'running' ? 'success' : statusClass === 'stopped' ? 'danger' : 'warning'}">
+    <span class="badge" class:badge--success={isRunning} class:badge--danger={!isRunning && !isInstalled} class:badge--neutral={isInstalled}>
       {service.status}
     </span>
   </div>
@@ -41,6 +43,7 @@
     {/if}
   </div>
 
+  {#if service.has_service}
   <div class="service-card__actions">
     <button
       class="btn-primary"
@@ -56,6 +59,7 @@
       </button>
     {/if}
   </div>
+  {/if}
 </div>
 
 <style>
