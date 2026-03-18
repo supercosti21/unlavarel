@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::process::Command;
 
-use crate::package_manager::create_package_manager;
 use crate::platform::detect::{detect_platform, DetectedPlatform};
 use crate::platform::{current_os, OsType};
 
@@ -23,6 +22,19 @@ pub struct StackSelection {
     pub node_version: Option<String>,
 }
 
+/// What's already installed on the system
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreScanResult {
+    pub installed: Vec<PreScanItem>,
+    pub missing: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreScanItem {
+    pub name: String,
+    pub version: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthResult {
     pub checks: Vec<HealthCheck>,
@@ -32,7 +44,7 @@ pub struct HealthResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthCheck {
     pub name: String,
-    pub status: String, // "ok", "missing", "error"
+    pub status: String,
     pub detail: String,
 }
 
@@ -51,7 +63,7 @@ fn setup_complete_file() -> PathBuf {
 #[tauri::command]
 pub async fn check_setup() -> Result<SetupState, String> {
     let platform = detect_platform().await;
-    let pm = create_package_manager();
+    let pm = crate::package_manager::create_package_manager();
     let available = pm.is_available().await;
     let first_run = !setup_complete_file().exists();
 
@@ -65,14 +77,60 @@ pub async fn check_setup() -> Result<SetupState, String> {
 
 #[tauri::command]
 pub async fn bootstrap_package_manager() -> Result<String, String> {
-    let pm = create_package_manager();
-
+    let pm = crate::package_manager::create_package_manager();
     if pm.is_available().await {
         return Ok(format!("{} is already installed", pm.name()));
     }
-
     pm.bootstrap().await.map_err(|e| e.to_string())?;
     Ok(format!("{} installed successfully", pm.name()))
+}
+
+/// Pre-scan: check what's already installed before showing install options
+#[tauri::command]
+pub async fn pre_scan_system() -> Result<PreScanResult, String> {
+    let checks = vec![
+        ("PHP", "php", vec!["-v"]),
+        ("Composer", "composer", vec!["--version"]),
+        ("Nginx", "nginx", vec!["-v"]),
+        ("MySQL/MariaDB", "mysql", vec!["--version"]),
+        ("PostgreSQL", "psql", vec!["--version"]),
+        ("Redis", "redis-server", vec!["--version"]),
+        ("Memcached", "memcached", vec!["-h"]),
+        ("Node.js", "node", vec!["--version"]),
+        ("dnsmasq", "dnsmasq", vec!["--version"]),
+        ("mkcert", "mkcert", vec!["--version"]),
+        ("Mailpit", "mailpit", vec!["version"]),
+    ];
+
+    let mut installed = Vec::new();
+    let mut missing = Vec::new();
+
+    for (name, binary, args) in &checks {
+        let output = Command::new(binary).args(args.as_slice()).output().await;
+        match output {
+            Ok(o) => {
+                let text = if o.status.success() {
+                    String::from_utf8_lossy(&o.stdout).to_string()
+                } else {
+                    String::from_utf8_lossy(&o.stderr).to_string()
+                };
+                let first_line = text.lines().next().unwrap_or("").trim();
+                if !first_line.is_empty() {
+                    installed.push(PreScanItem {
+                        name: name.to_string(),
+                        version: first_line.to_string(),
+                    });
+                } else {
+                    missing.push(name.to_string());
+                }
+            }
+            Err(_) => {
+                missing.push(name.to_string());
+            }
+        }
+    }
+
+    Ok(PreScanResult { installed, missing })
 }
 
 #[tauri::command]
@@ -84,10 +142,10 @@ pub async fn install_stack(selection: StackSelection) -> Result<Vec<String>, Str
     }
 }
 
-/// macOS: Homebrew doesn't need sudo — install one by one
+/// macOS: Homebrew doesn't need sudo
 async fn install_stack_homebrew(selection: StackSelection) -> Result<Vec<String>, String> {
-    let pm = create_package_manager();
-    let packages = build_package_list(&selection);
+    let pm = crate::package_manager::create_package_manager();
+    let packages = build_homebrew_list(&selection);
     let mut results = Vec::new();
 
     for (display_name, pkg) in &packages {
@@ -105,62 +163,98 @@ async fn install_stack_homebrew(selection: StackSelection) -> Result<Vec<String>
     Ok(results)
 }
 
-/// Linux: batch ALL packages into ONE pkexec call (single password prompt)
+/// Linux: write a SINGLE bash script and run it ONCE with pkexec
+/// This means the user enters the password exactly ONE time.
 async fn install_stack_linux(selection: StackSelection) -> Result<Vec<String>, String> {
-    let packages = build_native_package_list_linux(&selection);
-    let mut results = Vec::new();
+    let is_arch = PathBuf::from("/usr/bin/pacman").exists();
+    let packages = build_linux_package_list(&selection, is_arch);
+    let aur_packages = build_aur_list(&selection);
 
-    if packages.is_empty() {
-        return Ok(vec!["No packages to install".into()]);
+    if packages.is_empty() && aur_packages.is_empty() {
+        std::fs::write(setup_complete_file(), "done").ok();
+        return Ok(vec!["Nothing to install".into()]);
     }
 
-    // Detect package manager
-    let (cmd, install_args) = if PathBuf::from("/usr/bin/pacman").exists() {
-        ("pacman", vec!["-S", "--noconfirm", "--needed"])
-    } else if PathBuf::from("/usr/bin/apt-get").exists() {
-        ("apt-get", vec!["install", "-y"])
-    } else {
-        return Err("No supported package manager found".into());
-    };
+    // Build a single bash script that does everything
+    let mut script = String::from("#!/bin/bash\nset -e\n\n");
 
-    // Single pkexec call with all packages
-    let mut args = install_args;
-    for pkg in &packages {
-        args.push(pkg);
+    // Package manager install
+    if !packages.is_empty() {
+        if is_arch {
+            script.push_str(&format!(
+                "pacman -S --noconfirm --needed {}\n",
+                packages.join(" ")
+            ));
+        } else {
+            script.push_str("export DEBIAN_FRONTEND=noninteractive\n");
+            script.push_str(&format!(
+                "apt-get install -y {}\n",
+                packages.join(" ")
+            ));
+        }
     }
 
-    let output = Command::new("pkexec")
-        .arg(cmd)
-        .args(&args)
+    // AUR / direct download packages
+    for (name, url) in &aur_packages {
+        script.push_str(&format!(
+            "\n# Install {} from binary\n\
+             curl -L -o /tmp/{name}.tar.gz {url}\n\
+             tar -xzf /tmp/{name}.tar.gz -C /tmp/\n\
+             install -m 755 /tmp/{name} /usr/local/bin/{name}\n\
+             rm -f /tmp/{name}.tar.gz /tmp/{name}\n",
+            name,
+            name = name,
+            url = url,
+        ));
+    }
+
+    // Write script to temp file
+    let script_path = "/tmp/macenv_install.sh";
+    tokio::fs::write(script_path, &script)
+        .await
+        .map_err(|e| format!("Failed to write install script: {}", e))?;
+
+    // Make executable
+    Command::new("chmod")
+        .args(["+x", script_path])
         .output()
         .await
-        .map_err(|e| format!("Failed to run pkexec: {}", e))?;
+        .ok();
 
+    // Run with pkexec — ONE password prompt for everything
+    let output = Command::new("pkexec")
+        .args(["bash", script_path])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run installer: {}", e))?;
+
+    // Cleanup
+    tokio::fs::remove_file(script_path).await.ok();
+
+    let mut results = Vec::new();
     let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
 
     if output.status.success() {
         for pkg in &packages {
             results.push(format!("{} installed", pkg));
         }
+        for (name, _) in &aur_packages {
+            results.push(format!("{} installed", name));
+        }
     } else {
-        // Some may have succeeded, some failed — report the error
-        results.push(format!("Installation output: {}", stderr.trim()));
-        // Still check which ones are now installed
+        results.push(format!("Script output: {}", stdout.trim()));
+        if !stderr.trim().is_empty() {
+            results.push(format!("Errors: {}", stderr.trim()));
+        }
+        // Check what actually got installed
         for pkg in &packages {
-            if check_binary_exists(pkg).await {
+            let base = pkg.split('-').next().unwrap_or(pkg);
+            if check_binary(base).await {
                 results.push(format!("{} installed", pkg));
             } else {
-                results.push(format!("{} may have failed", pkg));
+                results.push(format!("{} failed", pkg));
             }
-        }
-    }
-
-    // Handle AUR packages separately (mailpit etc.)
-    let aur_packages = build_aur_package_list(&selection);
-    for (name, url) in &aur_packages {
-        match install_from_url(name, url).await {
-            Ok(_) => results.push(format!("{} installed", name)),
-            Err(e) => results.push(format!("{} failed: {}", name, e)),
         }
     }
 
@@ -168,25 +262,17 @@ async fn install_stack_linux(selection: StackSelection) -> Result<Vec<String>, S
     Ok(results)
 }
 
-/// Build list of (display_name, canonical_name) for Homebrew
-fn build_package_list(selection: &StackSelection) -> Vec<(String, String)> {
+fn build_homebrew_list(selection: &StackSelection) -> Vec<(String, String)> {
     let mut packages = Vec::new();
 
-    // PHP
-    packages.push((
-        format!("PHP {}", selection.php_version),
-        format!("php@{}", selection.php_version),
-    ));
+    packages.push((format!("PHP {}", selection.php_version), format!("php@{}", selection.php_version)));
 
-    // Database
     match selection.database.as_str() {
         "mysql" => {
             let ver = selection.database_version.as_deref().unwrap_or("8.4");
             packages.push((format!("MySQL {}", ver), format!("mysql@{}", ver)));
         }
-        "mariadb" => {
-            packages.push(("MariaDB".into(), "mariadb".into()));
-        }
+        "mariadb" => packages.push(("MariaDB".into(), "mariadb".into())),
         "postgresql" => {
             let ver = selection.database_version.as_deref().unwrap_or("17");
             packages.push((format!("PostgreSQL {}", ver), format!("postgresql@{}", ver)));
@@ -194,11 +280,9 @@ fn build_package_list(selection: &StackSelection) -> Vec<(String, String)> {
         _ => {}
     }
 
-    // Always
     packages.push(("Nginx".into(), "nginx".into()));
     packages.push(("Composer".into(), "composer".into()));
 
-    // Extras
     for extra in &selection.extras {
         match extra.as_str() {
             "redis" => packages.push(("Redis".into(), "redis".into())),
@@ -208,49 +292,37 @@ fn build_package_list(selection: &StackSelection) -> Vec<(String, String)> {
                 let ver = selection.node_version.as_deref().unwrap_or("22");
                 packages.push((format!("Node.js {}", ver), format!("node@{}", ver)));
             }
-            _ => packages.push((extra.clone(), extra.clone())),
+            _ => {}
         }
     }
 
-    // Tools
     packages.push(("dnsmasq".into(), "dnsmasq".into()));
     packages.push(("mkcert".into(), "mkcert".into()));
-
     packages
 }
 
-/// Build list of native package names for pacman/apt (NOT AUR)
-fn build_native_package_list_linux(selection: &StackSelection) -> Vec<String> {
-    let is_arch = PathBuf::from("/usr/bin/pacman").exists();
+fn build_linux_package_list(selection: &StackSelection, is_arch: bool) -> Vec<String> {
     let mut packages = Vec::new();
 
-    // PHP
     if is_arch {
-        packages.push("php".into());
-        packages.push("php-fpm".into());
+        packages.extend(["php", "php-fpm"].iter().map(|s| s.to_string()));
     } else {
         let v = &selection.php_version;
-        packages.push(format!("php{}-fpm", v));
-        packages.push(format!("php{}-cli", v));
-        packages.push(format!("php{}-common", v));
-        packages.push(format!("php{}-mysql", v));
-        packages.push(format!("php{}-xml", v));
-        packages.push(format!("php{}-curl", v));
-        packages.push(format!("php{}-mbstring", v));
-        packages.push(format!("php{}-zip", v));
+        for suffix in &["fpm", "cli", "common", "mysql", "xml", "curl", "mbstring", "zip"] {
+            packages.push(format!("php{}-{}", v, suffix));
+        }
     }
 
-    // Database
     match selection.database.as_str() {
-        "mysql" => {
+        "mysql" | "mariadb" => {
             if is_arch {
-                // Arch doesn't have MySQL in official repos, use MariaDB
                 packages.push("mariadb".into());
-            } else {
+            } else if selection.database == "mysql" {
                 packages.push("mysql-server".into());
+            } else {
+                packages.push("mariadb-server".into());
             }
         }
-        "mariadb" => packages.push("mariadb".into()),
         "postgresql" => packages.push("postgresql".into()),
         _ => {}
     }
@@ -260,93 +332,34 @@ fn build_native_package_list_linux(selection: &StackSelection) -> Vec<String> {
 
     for extra in &selection.extras {
         match extra.as_str() {
-            "redis" => {
-                if is_arch {
-                    packages.push("redis".into());
-                } else {
-                    packages.push("redis-server".into());
-                }
-            }
+            "redis" => packages.push(if is_arch { "redis".into() } else { "redis-server".into() }),
             "memcached" => packages.push("memcached".into()),
             "node" => {
-                if is_arch {
-                    packages.push("nodejs".into());
-                    packages.push("npm".into());
-                } else {
-                    packages.push("nodejs".into());
-                }
+                packages.push(if is_arch { "nodejs".into() } else { "nodejs".into() });
+                if is_arch { packages.push("npm".into()); }
             }
-            // mailpit is AUR — handled separately
-            "mailpit" => {}
-            _ => packages.push(extra.clone()),
+            "mailpit" => {} // handled as AUR
+            _ => {}
         }
     }
 
     packages.push("dnsmasq".into());
     packages.push("mkcert".into());
-
     packages
 }
 
-/// Build list of (name, download_url) for AUR/non-repo packages
-fn build_aur_package_list(selection: &StackSelection) -> Vec<(String, String)> {
+fn build_aur_list(selection: &StackSelection) -> Vec<(String, String)> {
     let mut packages = Vec::new();
-
     if selection.extras.contains(&"mailpit".to_string()) {
-        // Install mailpit via direct binary download
         packages.push((
             "mailpit".into(),
             "https://github.com/axllent/mailpit/releases/latest/download/mailpit-linux-amd64.tar.gz".into(),
         ));
     }
-
     packages
 }
 
-/// Install a binary from a tar.gz URL to /usr/local/bin
-async fn install_from_url(name: &str, url: &str) -> Result<(), String> {
-    let tmp = format!("/tmp/{}.tar.gz", name);
-
-    // Download
-    let dl = Command::new("curl")
-        .args(["-L", "-o", &tmp, url])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !dl.status.success() {
-        return Err(format!("Download failed: {}", String::from_utf8_lossy(&dl.stderr)));
-    }
-
-    // Extract to /tmp
-    let extract = Command::new("tar")
-        .args(["-xzf", &tmp, "-C", "/tmp"])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !extract.status.success() {
-        return Err("Extract failed".into());
-    }
-
-    // Move binary to /usr/local/bin with pkexec
-    let mv = Command::new("pkexec")
-        .args(["install", "-m", "755", &format!("/tmp/{}", name), &format!("/usr/local/bin/{}", name)])
-        .output()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !mv.status.success() {
-        return Err(format!("Install to /usr/local/bin failed: {}", String::from_utf8_lossy(&mv.stderr)));
-    }
-
-    // Cleanup
-    tokio::fs::remove_file(&tmp).await.ok();
-
-    Ok(())
-}
-
-async fn check_binary_exists(name: &str) -> bool {
+async fn check_binary(name: &str) -> bool {
     Command::new("which")
         .arg(name)
         .output()
@@ -361,61 +374,40 @@ pub async fn mark_setup_complete() -> Result<(), String> {
     Ok(())
 }
 
-/// Health check — verify all dependencies and services
 #[tauri::command]
 pub async fn health_check() -> Result<HealthResult, String> {
     let mut checks = Vec::new();
 
-    // Check binaries
     let binaries = [
-        ("PHP", "php"),
-        ("Composer", "composer"),
-        ("Nginx", "nginx"),
-        ("dnsmasq", "dnsmasq"),
-        ("mkcert", "mkcert"),
+        ("PHP", "php", "--version"),
+        ("Composer", "composer", "--version"),
+        ("Nginx", "nginx", "-v"),
+        ("dnsmasq", "dnsmasq", "--version"),
+        ("mkcert", "mkcert", "--version"),
     ];
 
-    for (name, binary) in &binaries {
-        let output = Command::new(binary).arg("--version").output().await;
+    for (name, binary, arg) in &binaries {
+        let output = Command::new(binary).arg(arg).output().await;
         match output {
-            Ok(o) if o.status.success() => {
-                let ver = String::from_utf8_lossy(&o.stdout);
-                let first = ver.lines().next().unwrap_or("").trim().to_string();
-                checks.push(HealthCheck {
-                    name: name.to_string(),
-                    status: "ok".into(),
-                    detail: first,
-                });
-            }
             Ok(o) => {
-                // Some tools output version to stderr (nginx -v)
-                let ver = String::from_utf8_lossy(&o.stderr);
-                let first = ver.lines().next().unwrap_or("").trim().to_string();
-                if !first.is_empty() {
-                    checks.push(HealthCheck {
-                        name: name.to_string(),
-                        status: "ok".into(),
-                        detail: first,
-                    });
+                let text = if o.status.success() {
+                    String::from_utf8_lossy(&o.stdout)
                 } else {
-                    checks.push(HealthCheck {
-                        name: name.to_string(),
-                        status: "error".into(),
-                        detail: "Binary found but returned error".into(),
-                    });
+                    String::from_utf8_lossy(&o.stderr)
+                };
+                let first = text.lines().next().unwrap_or("").trim().to_string();
+                if !first.is_empty() {
+                    checks.push(HealthCheck { name: name.to_string(), status: "ok".into(), detail: first });
+                } else {
+                    checks.push(HealthCheck { name: name.to_string(), status: "error".into(), detail: "Returns empty".into() });
                 }
             }
             Err(_) => {
-                checks.push(HealthCheck {
-                    name: name.to_string(),
-                    status: "missing".into(),
-                    detail: format!("{} not found in PATH", binary),
-                });
+                checks.push(HealthCheck { name: name.to_string(), status: "missing".into(), detail: format!("{} not found", binary) });
             }
         }
     }
 
-    // Check optional binaries
     let optionals = [
         ("MySQL/MariaDB", &["mysql", "mariadb"][..]),
         ("PostgreSQL", &["psql"][..]),
@@ -427,67 +419,39 @@ pub async fn health_check() -> Result<HealthResult, String> {
     for (name, candidates) in &optionals {
         let mut found = false;
         for binary in *candidates {
-            let output = Command::new(binary).arg("--version").output().await;
-            if let Ok(o) = output {
+            if let Ok(o) = Command::new(binary).arg("--version").output().await {
                 let text = if o.status.success() {
-                    String::from_utf8_lossy(&o.stdout).to_string()
+                    String::from_utf8_lossy(&o.stdout)
                 } else {
-                    String::from_utf8_lossy(&o.stderr).to_string()
+                    String::from_utf8_lossy(&o.stderr)
                 };
                 let first = text.lines().next().unwrap_or("").trim().to_string();
                 if !first.is_empty() {
-                    checks.push(HealthCheck {
-                        name: name.to_string(),
-                        status: "ok".into(),
-                        detail: first,
-                    });
+                    checks.push(HealthCheck { name: name.to_string(), status: "ok".into(), detail: first });
                     found = true;
                     break;
                 }
             }
         }
         if !found {
-            checks.push(HealthCheck {
-                name: name.to_string(),
-                status: "missing".into(),
-                detail: "Not installed".into(),
-            });
+            checks.push(HealthCheck { name: name.to_string(), status: "missing".into(), detail: "Not installed".into() });
         }
     }
 
-    // Check dnsmasq config
-    let dns_configured = crate::dns::is_configured().await.unwrap_or(false);
+    let dns_ok = crate::dns::is_configured().await.unwrap_or(false);
     checks.push(HealthCheck {
         name: "DNS (*.test)".into(),
-        status: if dns_configured { "ok" } else { "missing" }.into(),
-        detail: if dns_configured {
-            "dnsmasq configured for .test TLD".into()
-        } else {
-            "dnsmasq not configured — .test domains won't resolve".into()
-        },
+        status: if dns_ok { "ok" } else { "missing" }.into(),
+        detail: if dns_ok { "dnsmasq configured".into() } else { "Not configured".into() },
     });
 
-    // Check mkcert CA
-    let ca_installed = crate::ssl::is_ca_installed().await;
+    let ca_ok = crate::ssl::is_ca_installed().await;
     checks.push(HealthCheck {
         name: "SSL CA".into(),
-        status: if ca_installed { "ok" } else { "missing" }.into(),
-        detail: if ca_installed {
-            "Local CA installed and trusted".into()
-        } else {
-            "Local CA not installed — run mkcert -install".into()
-        },
-    });
-
-    // Check nginx sites dir
-    let sites_dir = crate::vhosts::nginx_sites_dir();
-    checks.push(HealthCheck {
-        name: "Nginx sites dir".into(),
-        status: if sites_dir.exists() { "ok" } else { "missing" }.into(),
-        detail: sites_dir.to_string_lossy().to_string(),
+        status: if ca_ok { "ok" } else { "missing" }.into(),
+        detail: if ca_ok { "Local CA trusted".into() } else { "Run mkcert -install".into() },
     });
 
     let all_ok = checks.iter().all(|c| c.status == "ok");
-
     Ok(HealthResult { checks, all_ok })
 }
