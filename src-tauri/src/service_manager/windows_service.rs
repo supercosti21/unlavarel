@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::error::{MacEnvError, Result};
 use super::{ServiceInfo, ServiceManager, ServiceStatus};
+use crate::error::{MacEnvError, Result};
 
 pub struct WindowsService;
 

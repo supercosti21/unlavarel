@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::process::Command;
 
+use super::{InstalledPackage, PackageId, PackageManager, VersionSpec};
 use crate::error::{MacEnvError, Result};
 use crate::platform::permissions::Privilege;
-use super::{InstalledPackage, PackageId, PackageManager, VersionSpec};
 
 pub struct Apt;
 
@@ -92,7 +92,8 @@ impl PackageManager for Apt {
 
     async fn upgrade(&self, id: &PackageId) -> Result<InstalledPackage> {
         let native = self.resolve_native_name(id)?;
-        self.run_apt(&["install", "--only-upgrade", "-y", &native]).await?;
+        self.run_apt(&["install", "--only-upgrade", "-y", &native])
+            .await?;
 
         Ok(InstalledPackage {
             id: id.clone(),
@@ -128,10 +129,7 @@ impl PackageManager for Apt {
 
     async fn is_installed(&self, id: &PackageId) -> Result<bool> {
         let native = self.resolve_native_name(id)?;
-        let output = Command::new("dpkg")
-            .args(["-l", &native])
-            .output()
-            .await?;
+        let output = Command::new("dpkg").args(["-l", &native]).output().await?;
         Ok(output.status.success())
     }
 

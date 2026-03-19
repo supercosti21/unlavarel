@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::process::Command;
 
+use super::{InstalledPackage, PackageId, PackageManager, VersionSpec};
 use crate::error::{MacEnvError, Result};
 use crate::platform::permissions::Privilege;
-use super::{InstalledPackage, PackageId, PackageManager, VersionSpec};
 
 pub struct Homebrew {
     brew_path: PathBuf,
@@ -28,10 +28,7 @@ impl Homebrew {
     }
 
     async fn run_brew(&self, args: &[&str]) -> Result<String> {
-        let output = Command::new(&self.brew_path)
-            .args(args)
-            .output()
-            .await?;
+        let output = Command::new(&self.brew_path).args(args).output().await?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -138,7 +135,9 @@ impl PackageManager for Homebrew {
     }
 
     async fn available_versions(&self, canonical: &str) -> Result<Vec<String>> {
-        let output = self.run_brew(&["search", &format!("{}@", canonical)]).await?;
+        let output = self
+            .run_brew(&["search", &format!("{}@", canonical)])
+            .await?;
         let versions: Vec<String> = output
             .lines()
             .filter_map(|l| {

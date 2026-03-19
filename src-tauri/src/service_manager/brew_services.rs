@@ -2,10 +2,18 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::process::Command;
 
-use crate::error::{MacEnvError, Result};
 use super::{ServiceInfo, ServiceManager, ServiceStatus};
+use crate::error::{MacEnvError, Result};
 
-const MANAGED_SERVICES: &[&str] = &["php", "mysql", "nginx", "redis", "memcached", "dnsmasq", "mailpit"];
+const MANAGED_SERVICES: &[&str] = &[
+    "php",
+    "mysql",
+    "nginx",
+    "redis",
+    "memcached",
+    "dnsmasq",
+    "mailpit",
+];
 
 pub struct BrewServices {
     brew_path: PathBuf,
@@ -70,10 +78,7 @@ impl BrewServices {
             _ => return String::new(),
         };
 
-        let output = Command::new(binary)
-            .arg("--version")
-            .output()
-            .await;
+        let output = Command::new(binary).arg("--version").output().await;
 
         match output {
             Ok(o) if o.status.success() => {

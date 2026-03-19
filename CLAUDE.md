@@ -15,6 +15,9 @@ npm run tauri build              # Production build
 npm run dev                      # Frontend-only dev server (no Rust backend)
 cd src-tauri && cargo clippy     # Lint Rust code
 cd src-tauri && cargo build      # Build Rust backend only
+cd src-tauri && cargo test       # Run Rust unit tests
+npm test                         # Run frontend tests (vitest)
+npm run test:watch               # Run frontend tests in watch mode
 ```
 
 ### Platform-specific deps
@@ -78,6 +81,16 @@ Frontend components → Tauri `invoke()` → Rust commands (registered in `lib.r
 2. Register in `package_manager/mod.rs` and update factory detection logic
 3. Add mappings for all packages in `packages.toml`
 
+## Testing
+
+- **Rust tests**: unit tests in `#[cfg(test)]` modules within source files. Tests cover version parsers, package registry resolution, platform detection, error types, settings serialization, nginx config generation, and utility functions.
+- **Frontend tests**: vitest in `src/lib/*.test.js`. Tests cover utility functions (formatSize, validation, sanitization).
+- CI runs both `cargo test` and `npm test` before building.
+
 ## CI/CD
 
-GitHub Actions matrix build: macOS (universal), Ubuntu (AppImage+deb), Windows (exe+msi). Uses `tauri-apps/tauri-action@v0`. See `.github/workflows/build.yml`.
+GitHub Actions workflow (`.github/workflows/build.yml`) has two jobs:
+1. **test** — runs `cargo clippy`, `cargo test`, and `npm test` on all three platforms
+2. **build** — runs after tests pass, builds Tauri app and creates draft releases on tags
+
+Matrix: macOS (universal), Ubuntu (AppImage+deb), Windows (exe+msi). Uses `tauri-apps/tauri-action@v0`.

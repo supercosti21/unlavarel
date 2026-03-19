@@ -205,10 +205,49 @@ pub async fn reload_nginx() -> Result<()> {
 
 /// Test Nginx configuration is valid.
 pub async fn test_nginx_config() -> Result<bool> {
-    let output = Command::new("nginx")
-        .args(["-t"])
-        .output()
-        .await?;
+    let output = Command::new("nginx").args(["-t"]).output().await?;
 
     Ok(output.status.success())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_nginx_config_http_only() {
+        let config = generate_nginx_config("myapp.test", "/home/user/projects/myapp", false);
+        assert!(config.contains("server_name myapp.test"));
+        assert!(config.contains("root /home/user/projects/myapp/public"));
+        assert!(config.contains("listen 80"));
+        assert!(config.contains("index.php"));
+        assert!(config.contains("fastcgi_pass"));
+        assert!(!config.contains("listen 443"));
+        assert!(!config.contains("ssl_certificate"));
+    }
+
+    #[test]
+    fn test_generate_nginx_config_with_ssl() {
+        let config = generate_nginx_config("myapp.test", "/home/user/projects/myapp", true);
+        assert!(config.contains("listen 80"));
+        assert!(config.contains("listen 443 ssl"));
+        assert!(config.contains("ssl_certificate"));
+        assert!(config.contains("ssl_certificate_key"));
+        assert!(config.contains("myapp.test.pem"));
+        assert!(config.contains("myapp.test-key.pem"));
+    }
+
+    #[test]
+    fn test_generate_nginx_config_has_security_rules() {
+        let config = generate_nginx_config("app.test", "/srv/app", false);
+        // Blocks hidden files (except .well-known)
+        assert!(config.contains("deny all"));
+        assert!(config.contains(".well-known"));
+    }
+
+    #[test]
+    fn test_nginx_sites_dir_not_empty() {
+        let dir = nginx_sites_dir();
+        assert!(!dir.to_string_lossy().is_empty());
+    }
 }

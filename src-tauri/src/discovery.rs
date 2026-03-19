@@ -5,14 +5,14 @@ use tokio::process::Command;
 /// A service that is actually installed on this system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InstalledService {
-    pub id: String,           // unique key: "php", "mariadb", "nginx"...
-    pub display_name: String, // "PHP 8.5.4", "MariaDB 12.2"
-    pub category: String,     // "language", "database", "webserver", "cache", "dns", "mail", "tool"
-    pub binary: String,       // path to binary
+    pub id: String,                   // unique key: "php", "mariadb", "nginx"...
+    pub display_name: String,         // "PHP 8.5.4", "MariaDB 12.2"
+    pub category: String, // "language", "database", "webserver", "cache", "dns", "mail", "tool"
+    pub binary: String,   // path to binary
     pub systemd_unit: Option<String>, // "php-fpm", "mariadb", "nginx"...
     pub brew_service: Option<String>, // for macOS
     pub version: String,
-    pub has_service: bool,    // can be started/stopped
+    pub has_service: bool, // can be started/stopped
 }
 
 /// Scan the system and return only what's actually installed.
@@ -31,14 +31,30 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
     }
 
     // Database: check what's ACTUALLY installed — only one
-    if let Some(svc) = detect("mariadb", "mariadb", &["--version"], "database", parse_mariadb_version).await {
+    if let Some(svc) = detect(
+        "mariadb",
+        "mariadb",
+        &["--version"],
+        "database",
+        parse_mariadb_version,
+    )
+    .await
+    {
         let mut svc = svc;
         svc.display_name = format!("MariaDB {}", svc.version);
         svc.systemd_unit = Some("mariadb".into());
         svc.brew_service = Some("mariadb".into());
         svc.has_service = true;
         found.push(svc);
-    } else if let Some(svc) = detect("mysql", "mysql", &["--version"], "database", parse_mysql_version).await {
+    } else if let Some(svc) = detect(
+        "mysql",
+        "mysql",
+        &["--version"],
+        "database",
+        parse_mysql_version,
+    )
+    .await
+    {
         // Only check mysql if mariadb is NOT found (mariadb provides mysql binary too)
         // Distinguish real MySQL from MariaDB's mysql binary
         let output = Command::new("mysql").arg("--version").output().await;
@@ -56,7 +72,15 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
     }
 
     // PostgreSQL
-    if let Some(svc) = detect("postgresql", "psql", &["--version"], "database", parse_simple_version).await {
+    if let Some(svc) = detect(
+        "postgresql",
+        "psql",
+        &["--version"],
+        "database",
+        parse_simple_version,
+    )
+    .await
+    {
         let mut svc = svc;
         svc.display_name = format!("PostgreSQL {}", svc.version);
         svc.systemd_unit = Some("postgresql".into());
@@ -76,11 +100,20 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
     }
 
     // Redis / Valkey (Arch uses valkey which provides redis-server)
-    if let Some(svc) = detect("redis", "redis-server", &["--version"], "cache", parse_redis_version).await {
+    if let Some(svc) = detect(
+        "redis",
+        "redis-server",
+        &["--version"],
+        "cache",
+        parse_redis_version,
+    )
+    .await
+    {
         let mut svc = svc;
         let is_valkey = svc.version.contains("Valkey") || {
             let o = Command::new("redis-server").arg("--version").output().await;
-            o.map(|o| String::from_utf8_lossy(&o.stdout).contains("Valkey")).unwrap_or(false)
+            o.map(|o| String::from_utf8_lossy(&o.stdout).contains("Valkey"))
+                .unwrap_or(false)
         };
         svc.display_name = if is_valkey {
             format!("Valkey (Redis) {}", svc.version)
@@ -94,7 +127,15 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
     }
 
     // Memcached
-    if let Some(svc) = detect("memcached", "memcached", &["-h"], "cache", parse_memcached_version).await {
+    if let Some(svc) = detect(
+        "memcached",
+        "memcached",
+        &["-h"],
+        "cache",
+        parse_memcached_version,
+    )
+    .await
+    {
         let mut svc = svc;
         svc.display_name = format!("Memcached {}", svc.version);
         svc.systemd_unit = Some("memcached".into());
@@ -104,7 +145,15 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
     }
 
     // dnsmasq
-    if let Some(svc) = detect("dnsmasq", "dnsmasq", &["--version"], "dns", parse_simple_version).await {
+    if let Some(svc) = detect(
+        "dnsmasq",
+        "dnsmasq",
+        &["--version"],
+        "dns",
+        parse_simple_version,
+    )
+    .await
+    {
         let mut svc = svc;
         svc.display_name = format!("dnsmasq {}", svc.version);
         svc.systemd_unit = Some("dnsmasq".into());
@@ -114,7 +163,15 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
     }
 
     // Mailpit
-    if let Some(svc) = detect("mailpit", "mailpit", &["version"], "mail", parse_simple_version).await {
+    if let Some(svc) = detect(
+        "mailpit",
+        "mailpit",
+        &["version"],
+        "mail",
+        parse_simple_version,
+    )
+    .await
+    {
         let mut svc = svc;
         svc.display_name = format!("Mailpit {}", svc.version);
         svc.systemd_unit = Some("mailpit".into());
@@ -124,7 +181,15 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
     }
 
     // Composer (no service, just a tool)
-    if let Some(svc) = detect("composer", "composer", &["--version"], "tool", parse_simple_version).await {
+    if let Some(svc) = detect(
+        "composer",
+        "composer",
+        &["--version"],
+        "tool",
+        parse_simple_version,
+    )
+    .await
+    {
         let mut svc = svc;
         svc.display_name = format!("Composer {}", svc.version);
         svc.has_service = false;
@@ -168,7 +233,9 @@ async fn detect(
     } else {
         // Some tools write version to stderr (nginx -v)
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        if stderr.is_empty() { return None; }
+        if stderr.is_empty() {
+            return None;
+        }
         stderr
     };
 
@@ -210,7 +277,10 @@ fn parse_mariadb_version(output: &str) -> String {
         .nth(1)
         .and_then(|s| s.split(['-', ',']).next())
         .or_else(|| {
-            output.split("Ver ").nth(1).and_then(|s| s.split_whitespace().next())
+            output
+                .split("Ver ")
+                .nth(1)
+                .and_then(|s| s.split_whitespace().next())
         })
         .unwrap_or("")
         .to_string()
@@ -218,7 +288,8 @@ fn parse_mariadb_version(output: &str) -> String {
 
 fn parse_mysql_version(output: &str) -> String {
     output
-        .split("Ver ").nth(1)
+        .split("Ver ")
+        .nth(1)
         .and_then(|s| s.split_whitespace().next())
         .unwrap_or("")
         .to_string()
@@ -226,12 +297,22 @@ fn parse_mysql_version(output: &str) -> String {
 
 fn parse_nginx_version(output: &str) -> String {
     // "nginx version: nginx/1.27.3" -> "1.27.3"
-    output.split('/').nth(1).and_then(|s| s.split_whitespace().next()).unwrap_or("").to_string()
+    output
+        .split('/')
+        .nth(1)
+        .and_then(|s| s.split_whitespace().next())
+        .unwrap_or("")
+        .to_string()
 }
 
 fn parse_redis_version(output: &str) -> String {
     // "Redis server v=7.4.2 ..." or "Valkey server v=9.0.3 ..."
-    output.split("v=").nth(1).and_then(|s| s.split_whitespace().next()).unwrap_or("").to_string()
+    output
+        .split("v=")
+        .nth(1)
+        .and_then(|s| s.split_whitespace().next())
+        .unwrap_or("")
+        .to_string()
 }
 
 fn parse_memcached_version(output: &str) -> String {
@@ -246,7 +327,10 @@ fn parse_simple_version(output: &str) -> String {
         if word.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             return word.to_string();
         }
-        if word.starts_with('v') && word.len() > 1 && word.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
+        if word.starts_with('v')
+            && word.len() > 1
+            && word.chars().nth(1).is_some_and(|c| c.is_ascii_digit())
+        {
             return word.to_string();
         }
     }
@@ -273,5 +357,94 @@ fn load_cache() -> Vec<InstalledService> {
     match std::fs::read_to_string(cache_path()) {
         Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
         Err(_) => vec![],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_php_version() {
+        assert_eq!(
+            parse_php_version("PHP 8.5.4 (cli) (built: Jan 15 2025)"),
+            "8.5.4"
+        );
+        assert_eq!(parse_php_version("PHP 8.3.0"), "8.3.0");
+        assert_eq!(parse_php_version(""), "");
+    }
+
+    #[test]
+    fn test_parse_mariadb_version() {
+        assert_eq!(
+            parse_mariadb_version("mariadb  Ver 15.1 Distrib 11.6.2-MariaDB, for Linux"),
+            "11.6.2"
+        );
+        assert_eq!(parse_mariadb_version("mariadb from 12.2.2-MariaDB"), "");
+    }
+
+    #[test]
+    fn test_parse_mysql_version() {
+        assert_eq!(
+            parse_mysql_version("mysql  Ver 8.0.35 Distrib 8.0.35, for Linux on x86_64"),
+            "8.0.35"
+        );
+    }
+
+    #[test]
+    fn test_parse_nginx_version() {
+        assert_eq!(parse_nginx_version("nginx version: nginx/1.27.3"), "1.27.3");
+        assert_eq!(
+            parse_nginx_version("nginx version: nginx/1.25.0 (Ubuntu)"),
+            "1.25.0"
+        );
+    }
+
+    #[test]
+    fn test_parse_redis_version() {
+        assert_eq!(
+            parse_redis_version("Redis server v=7.4.2 sha=00000000:0"),
+            "7.4.2"
+        );
+        assert_eq!(
+            parse_redis_version("Valkey server v=9.0.3 sha=abcdef"),
+            "9.0.3"
+        );
+    }
+
+    #[test]
+    fn test_parse_memcached_version() {
+        assert_eq!(parse_memcached_version("memcached 1.6.41"), "1.6.41");
+    }
+
+    #[test]
+    fn test_parse_simple_version() {
+        assert_eq!(parse_simple_version("v22.5.0"), "v22.5.0");
+        assert_eq!(
+            parse_simple_version("Composer version 2.7.1 2024-02-09"),
+            "2.7.1"
+        );
+        assert_eq!(parse_simple_version("dnsmasq 2.90"), "2.90");
+    }
+
+    #[test]
+    fn test_cache_roundtrip() {
+        let services = vec![InstalledService {
+            id: "test".into(),
+            display_name: "Test Service".into(),
+            category: "tool".into(),
+            binary: "/usr/bin/test".into(),
+            systemd_unit: None,
+            brew_service: None,
+            version: "1.0".into(),
+            has_service: false,
+        }];
+
+        // Serialize and deserialize
+        let json = serde_json::to_string(&services).unwrap();
+        let parsed: Vec<InstalledService> = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].id, "test");
+        assert_eq!(parsed[0].version, "1.0");
     }
 }

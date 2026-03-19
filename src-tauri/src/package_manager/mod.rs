@@ -1,5 +1,5 @@
-pub mod homebrew;
 pub mod apt;
+pub mod homebrew;
 pub mod pacman;
 pub mod winget;
 
@@ -64,5 +64,69 @@ pub fn create_package_manager() -> Box<dyn PackageManager> {
             }
         }
         OsType::Windows => Box::new(winget::Winget::new()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_package_id_serialization() {
+        let id = PackageId {
+            canonical: "php".into(),
+            version: Some(VersionSpec::Minor("8.3".into())),
+        };
+        let json = serde_json::to_string(&id).unwrap();
+        let parsed: PackageId = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.canonical, "php");
+        assert_eq!(parsed.version, Some(VersionSpec::Minor("8.3".into())));
+    }
+
+    #[test]
+    fn test_package_id_no_version() {
+        let id = PackageId {
+            canonical: "nginx".into(),
+            version: None,
+        };
+        let json = serde_json::to_string(&id).unwrap();
+        let parsed: PackageId = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.canonical, "nginx");
+        assert_eq!(parsed.version, None);
+    }
+
+    #[test]
+    fn test_version_spec_variants() {
+        let exact = VersionSpec::Exact("8.3.12".into());
+        let minor = VersionSpec::Minor("8.3".into());
+        let major = VersionSpec::Major("8".into());
+        let latest = VersionSpec::Latest;
+
+        assert_ne!(exact, minor);
+        assert_ne!(minor, major);
+        assert_ne!(major, latest);
+    }
+
+    #[test]
+    fn test_installed_package_serialization() {
+        let pkg = InstalledPackage {
+            id: PackageId {
+                canonical: "nginx".into(),
+                version: None,
+            },
+            native_name: "nginx".into(),
+            installed_version: "1.27.3".into(),
+            binary_path: PathBuf::from("/usr/sbin/nginx"),
+        };
+        let json = serde_json::to_string(&pkg).unwrap();
+        let parsed: InstalledPackage = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.native_name, "nginx");
+        assert_eq!(parsed.installed_version, "1.27.3");
+    }
+
+    #[test]
+    fn test_create_package_manager_returns_impl() {
+        let pm = create_package_manager();
+        assert!(!pm.name().is_empty());
     }
 }

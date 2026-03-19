@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use tokio::process::Command;
 
-use crate::error::{MacEnvError, Result};
 use super::{ServiceInfo, ServiceManager, ServiceStatus};
+use crate::error::{MacEnvError, Result};
 
 const MANAGED_SERVICES: &[(&str, &str)] = &[
     ("php", "php-fpm"),
-    ("mysql", "mariadb"),   // Arch uses mariadb
+    ("mysql", "mariadb"), // Arch uses mariadb
     ("mariadb", "mariadb"),
     ("nginx", "nginx"),
     ("redis", "redis"),
@@ -38,10 +38,7 @@ impl Systemd {
     }
 
     async fn systemctl(&self, args: &[&str]) -> Result<String> {
-        let output = Command::new("systemctl")
-            .args(args)
-            .output()
-            .await?;
+        let output = Command::new("systemctl").args(args).output().await?;
 
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
@@ -238,7 +235,15 @@ impl ServiceManager for Systemd {
     async fn logs(&self, service: &str, lines: usize) -> Result<String> {
         let unit = self.resolve_unit_name(service);
         let output = Command::new("journalctl")
-            .args(["-u", unit, "-n", &lines.to_string(), "--no-pager", "-o", "short-iso"])
+            .args([
+                "-u",
+                unit,
+                "-n",
+                &lines.to_string(),
+                "--no-pager",
+                "-o",
+                "short-iso",
+            ])
             .output()
             .await?;
 

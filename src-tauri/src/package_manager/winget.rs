@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use std::path::PathBuf;
 
+use super::{InstalledPackage, PackageId, PackageManager};
 use crate::error::{MacEnvError, Result};
 use crate::platform::permissions::Privilege;
-use super::{InstalledPackage, PackageId, PackageManager};
 
 pub struct Winget;
 

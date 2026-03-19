@@ -39,7 +39,9 @@ pub async fn setup_dnsmasq() -> Result<()> {
     // Add .test resolution to dnsmasq.conf if not already there
     if !is_configured().await? {
         let existing = if config_path.exists() {
-            tokio::fs::read_to_string(&config_path).await.unwrap_or_default()
+            tokio::fs::read_to_string(&config_path)
+                .await
+                .unwrap_or_default()
         } else {
             String::new()
         };
@@ -63,7 +65,10 @@ pub async fn setup_dnsmasq() -> Result<()> {
                 Ok(mut child) => {
                     if let Some(stdin) = child.stdin.as_mut() {
                         use tokio::io::AsyncWriteExt;
-                        let line = format!("\n# MacEnv: resolve *.test to localhost\n{}\n", TEST_TLD_ENTRY);
+                        let line = format!(
+                            "\n# MacEnv: resolve *.test to localhost\n{}\n",
+                            TEST_TLD_ENTRY
+                        );
                         stdin.write_all(line.as_bytes()).await?;
                         stdin.shutdown().await?;
                     }
@@ -120,7 +125,11 @@ async fn setup_macos_resolver() -> Result<()> {
     }
 
     let write = Command::new("sudo")
-        .args(["bash", "-c", "echo 'nameserver 127.0.0.1' > /etc/resolver/test"])
+        .args([
+            "bash",
+            "-c",
+            "echo 'nameserver 127.0.0.1' > /etc/resolver/test",
+        ])
         .output()
         .await?;
 
@@ -157,6 +166,23 @@ async fn setup_linux_resolved() -> Result<()> {
         .await;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dnsmasq_config_path_not_empty() {
+        let path = dnsmasq_config_path();
+        assert!(!path.to_string_lossy().is_empty());
+        assert!(path.to_string_lossy().contains("dnsmasq"));
+    }
+
+    #[test]
+    fn test_test_tld_entry_constant() {
+        assert_eq!(TEST_TLD_ENTRY, "address=/.test/127.0.0.1");
+    }
 }
 
 /// Restart the dnsmasq service.

@@ -4,11 +4,11 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub theme: String,               // "dark" or "light"
-    pub default_php_version: String,  // e.g. "8.3"
-    pub project_root: String,         // default directory for new projects
-    pub auto_start_services: bool,    // start services on app launch
-    pub editor_command: String,       // e.g. "code", "phpstorm", "subl"
-    pub browser_command: String,      // e.g. "open", "xdg-open"
+    pub default_php_version: String, // e.g. "8.3"
+    pub project_root: String,        // default directory for new projects
+    pub auto_start_services: bool,   // start services on app launch
+    pub editor_command: String,      // e.g. "code", "phpstorm", "subl"
+    pub browser_command: String,     // e.g. "open", "xdg-open"
 }
 
 impl Default for AppSettings {
@@ -99,4 +99,66 @@ pub async fn open_in_browser(url: String) -> Result<(), String> {
         .spawn()
         .map_err(|e| format!("Failed to open browser: {}", e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_settings() {
+        let settings = AppSettings::default();
+        assert_eq!(settings.theme, "dark");
+        assert_eq!(settings.default_php_version, "8.3");
+        assert!(!settings.auto_start_services);
+        assert_eq!(settings.editor_command, "code");
+    }
+
+    #[test]
+    fn test_default_browser_command_platform() {
+        let settings = AppSettings::default();
+        if cfg!(target_os = "macos") {
+            assert_eq!(settings.browser_command, "open");
+        } else if cfg!(target_os = "windows") {
+            assert_eq!(settings.browser_command, "start");
+        } else {
+            assert_eq!(settings.browser_command, "xdg-open");
+        }
+    }
+
+    #[test]
+    fn test_settings_serialization_roundtrip() {
+        let settings = AppSettings {
+            theme: "light".into(),
+            default_php_version: "8.4".into(),
+            project_root: "/tmp/projects".into(),
+            auto_start_services: true,
+            editor_command: "vim".into(),
+            browser_command: "firefox".into(),
+        };
+
+        let json = serde_json::to_string_pretty(&settings).unwrap();
+        let parsed: AppSettings = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.theme, "light");
+        assert_eq!(parsed.default_php_version, "8.4");
+        assert_eq!(parsed.project_root, "/tmp/projects");
+        assert!(parsed.auto_start_services);
+        assert_eq!(parsed.editor_command, "vim");
+        assert_eq!(parsed.browser_command, "firefox");
+    }
+
+    #[test]
+    fn test_settings_file_persistence() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+
+        let settings = AppSettings::default();
+        let json = serde_json::to_string_pretty(&settings).unwrap();
+        std::fs::write(&path, &json).unwrap();
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        let loaded: AppSettings = serde_json::from_str(&content).unwrap();
+        assert_eq!(loaded.theme, "dark");
+    }
 }

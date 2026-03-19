@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 use tokio::process::Command;
 
+use super::{InstalledPackage, PackageId, PackageManager};
 use crate::error::{MacEnvError, Result};
 use crate::platform::permissions::Privilege;
-use super::{InstalledPackage, PackageId, PackageManager};
 
 pub struct Pacman;
 
@@ -21,9 +21,9 @@ impl Pacman {
 
     /// Run pacman with sudo for operations that need it (-S, -R, -Sy).
     async fn run_pacman(&self, args: &[&str]) -> Result<String> {
-        let needs_sudo = args.first().is_some_and(|a| {
-            *a == "-S" || *a == "-R" || *a == "-Sy" || *a == "-Syu"
-        });
+        let needs_sudo = args
+            .first()
+            .is_some_and(|a| *a == "-S" || *a == "-R" || *a == "-Sy" || *a == "-Syu");
 
         let output = if needs_sudo {
             Command::new("pkexec")

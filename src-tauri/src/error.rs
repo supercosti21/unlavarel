@@ -60,3 +60,75 @@ impl serde::Serialize for MacEnvError {
         serializer.serialize_str(&self.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_display_messages() {
+        let err = MacEnvError::PackageManagerNotFound {
+            manager: "homebrew".into(),
+        };
+        assert_eq!(
+            err.to_string(),
+            "Package manager `homebrew` is not installed"
+        );
+
+        let err = MacEnvError::PackageNotInRegistry {
+            package: "foo".into(),
+            manager: "apt".into(),
+        };
+        assert_eq!(
+            err.to_string(),
+            "Package `foo` not found in registry for manager `apt`"
+        );
+
+        let err = MacEnvError::ServiceNotFound {
+            service: "nginx".into(),
+        };
+        assert_eq!(err.to_string(), "Service `nginx` not found");
+
+        let err = MacEnvError::ElevationRequired {
+            context: "install php".into(),
+        };
+        assert_eq!(
+            err.to_string(),
+            "Operation requires elevated privileges: install php"
+        );
+
+        let err = MacEnvError::UnsupportedPlatform { os: "haiku".into() };
+        assert_eq!(err.to_string(), "Unsupported platform: haiku");
+
+        let err = MacEnvError::Timeout { seconds: 30 };
+        assert_eq!(err.to_string(), "Command timed out after 30s");
+
+        let err = MacEnvError::Other("custom error".into());
+        assert_eq!(err.to_string(), "custom error");
+    }
+
+    #[test]
+    fn test_error_serialization() {
+        let err = MacEnvError::ServiceNotFound {
+            service: "redis".into(),
+        };
+        let json = serde_json::to_string(&err).unwrap();
+        assert_eq!(json, "\"Service `redis` not found\"");
+    }
+
+    #[test]
+    fn test_io_error_conversion() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file missing");
+        let err: MacEnvError = io_err.into();
+        assert!(err.to_string().contains("file missing"));
+    }
+
+    #[test]
+    fn test_result_type_alias() {
+        let ok: Result<i32> = Ok(42);
+        assert_eq!(ok.unwrap(), 42);
+
+        let err: Result<i32> = Err(MacEnvError::Other("fail".into()));
+        assert!(err.is_err());
+    }
+}

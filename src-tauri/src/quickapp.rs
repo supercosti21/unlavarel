@@ -61,7 +61,10 @@ pub async fn create_app(
     let project_path = PathBuf::from(&parent_dir).join(&name);
 
     if project_path.exists() {
-        return Err(format!("Directory {} already exists", project_path.display()));
+        return Err(format!(
+            "Directory {} already exists",
+            project_path.display()
+        ));
     }
 
     match template_id.as_str() {
@@ -74,7 +77,11 @@ pub async fn create_app(
     }
 }
 
-async fn create_laravel(name: &str, parent_dir: &str, with_filament: bool) -> Result<String, String> {
+async fn create_laravel(
+    name: &str,
+    parent_dir: &str,
+    with_filament: bool,
+) -> Result<String, String> {
     let output = Command::new("composer")
         .args(["create-project", "laravel/laravel", name])
         .current_dir(parent_dir)
@@ -206,6 +213,51 @@ async fn create_wordpress(name: &str, parent_dir: &str) -> Result<String, String
     }
 
     Ok(project_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_available_templates_count() {
+        let templates = available_templates();
+        assert!(templates.len() >= 4);
+    }
+
+    #[test]
+    fn test_template_ids_unique() {
+        let templates = available_templates();
+        let ids: Vec<&str> = templates.iter().map(|t| t.id.as_str()).collect();
+        let mut unique = ids.clone();
+        unique.sort();
+        unique.dedup();
+        assert_eq!(ids.len(), unique.len());
+    }
+
+    #[test]
+    fn test_laravel_template_exists() {
+        let templates = available_templates();
+        let laravel = templates.iter().find(|t| t.id == "laravel");
+        assert!(laravel.is_some());
+        assert!(laravel.unwrap().command.contains("composer"));
+    }
+
+    #[test]
+    fn test_blank_template_exists() {
+        let templates = available_templates();
+        let blank = templates.iter().find(|t| t.id == "blank");
+        assert!(blank.is_some());
+        assert!(blank.unwrap().command.is_empty());
+    }
+
+    #[test]
+    fn test_template_serialization() {
+        let templates = available_templates();
+        let json = serde_json::to_string(&templates).unwrap();
+        let parsed: Vec<QuickAppTemplate> = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.len(), templates.len());
+    }
 }
 
 async fn create_blank(name: &str, parent_dir: &str) -> Result<String, String> {

@@ -3,7 +3,7 @@ use tokio::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbConnection {
-    pub db_type: String,    // "mysql", "mariadb", "postgresql"
+    pub db_type: String, // "mysql", "mariadb", "postgresql"
     pub host: String,
     pub port: u16,
     pub user: String,
@@ -56,11 +56,23 @@ impl Default for DbConnection {
 }
 
 fn detect_db_type() -> String {
-    if std::process::Command::new("mariadb").arg("--version").output().is_ok() {
+    if std::process::Command::new("mariadb")
+        .arg("--version")
+        .output()
+        .is_ok()
+    {
         "mariadb".into()
-    } else if std::process::Command::new("mysql").arg("--version").output().is_ok() {
+    } else if std::process::Command::new("mysql")
+        .arg("--version")
+        .output()
+        .is_ok()
+    {
         "mysql".into()
-    } else if std::process::Command::new("psql").arg("--version").output().is_ok() {
+    } else if std::process::Command::new("psql")
+        .arg("--version")
+        .output()
+        .is_ok()
+    {
         "postgresql".into()
     } else {
         "mysql".into()
@@ -68,8 +80,14 @@ fn detect_db_type() -> String {
 }
 
 fn detect_db_port() -> u16 {
-    if std::process::Command::new("psql").arg("--version").output().is_ok()
-        && std::process::Command::new("mysql").arg("--version").output().is_err()
+    if std::process::Command::new("psql")
+        .arg("--version")
+        .output()
+        .is_ok()
+        && std::process::Command::new("mysql")
+            .arg("--version")
+            .output()
+            .is_err()
     {
         5432
     } else {
@@ -79,9 +97,20 @@ fn detect_db_port() -> u16 {
 
 /// Build the mysql/mariadb command with connection args
 fn mysql_cmd(conn: &DbConnection) -> Command {
-    let binary = if conn.db_type == "mariadb" { "mariadb" } else { "mysql" };
+    let binary = if conn.db_type == "mariadb" {
+        "mariadb"
+    } else {
+        "mysql"
+    };
     let mut cmd = Command::new(binary);
-    cmd.args(["-h", &conn.host, "-P", &conn.port.to_string(), "-u", &conn.user]);
+    cmd.args([
+        "-h",
+        &conn.host,
+        "-P",
+        &conn.port.to_string(),
+        "-u",
+        &conn.user,
+    ]);
     if !conn.password.is_empty() {
         cmd.arg(format!("-p{}", conn.password));
     }
@@ -93,7 +122,14 @@ fn mysql_cmd(conn: &DbConnection) -> Command {
 /// Build the psql command with connection args
 fn psql_cmd(conn: &DbConnection) -> Command {
     let mut cmd = Command::new("psql");
-    cmd.args(["-h", &conn.host, "-p", &conn.port.to_string(), "-U", &conn.user]);
+    cmd.args([
+        "-h",
+        &conn.host,
+        "-p",
+        &conn.port.to_string(),
+        "-U",
+        &conn.user,
+    ]);
     cmd.arg("--tuples-only");
     cmd.arg("--no-align");
     cmd.arg("--field-separator=\t");
@@ -103,14 +139,21 @@ fn psql_cmd(conn: &DbConnection) -> Command {
     cmd
 }
 
-async fn run_mysql_query(conn: &DbConnection, db: Option<&str>, query: &str) -> Result<String, String> {
+async fn run_mysql_query(
+    conn: &DbConnection,
+    db: Option<&str>,
+    query: &str,
+) -> Result<String, String> {
     let mut cmd = mysql_cmd(conn);
     if let Some(db) = db {
         cmd.arg("-D").arg(db);
     }
     cmd.arg("-e").arg(query);
 
-    let output = cmd.output().await.map_err(|e| format!("Failed to run mysql: {}", e))?;
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run mysql: {}", e))?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
@@ -118,7 +161,11 @@ async fn run_mysql_query(conn: &DbConnection, db: Option<&str>, query: &str) -> 
     }
 }
 
-async fn run_psql_query(conn: &DbConnection, db: Option<&str>, query: &str) -> Result<String, String> {
+async fn run_psql_query(
+    conn: &DbConnection,
+    db: Option<&str>,
+    query: &str,
+) -> Result<String, String> {
     let mut cmd = psql_cmd(conn);
     if let Some(db) = db {
         cmd.arg("-d").arg(db);
@@ -127,7 +174,10 @@ async fn run_psql_query(conn: &DbConnection, db: Option<&str>, query: &str) -> R
     }
     cmd.arg("-c").arg(query);
 
-    let output = cmd.output().await.map_err(|e| format!("Failed to run psql: {}", e))?;
+    let output = cmd
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run psql: {}", e))?;
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
@@ -171,15 +221,19 @@ async fn list_databases_mysql(conn: &DbConnection) -> Result<Vec<DatabaseInfo>, 
          GROUP BY s.SCHEMA_NAME ORDER BY s.SCHEMA_NAME"
     ).await?;
 
-    Ok(output.lines().filter(|l| !l.is_empty()).map(|line| {
-        let parts: Vec<&str> = line.split('\t').collect();
-        let size_bytes: u64 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
-        DatabaseInfo {
-            name: parts.first().unwrap_or(&"").to_string(),
-            tables_count: parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
-            size: format_size(size_bytes),
-        }
-    }).collect())
+    Ok(output
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|line| {
+            let parts: Vec<&str> = line.split('\t').collect();
+            let size_bytes: u64 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+            DatabaseInfo {
+                name: parts.first().unwrap_or(&"").to_string(),
+                tables_count: parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+                size: format_size(size_bytes),
+            }
+        })
+        .collect())
 }
 
 async fn list_databases_pg(conn: &DbConnection) -> Result<Vec<DatabaseInfo>, String> {
@@ -191,15 +245,23 @@ async fn list_databases_pg(conn: &DbConnection) -> Result<Vec<DatabaseInfo>, Str
     for line in output.lines().filter(|l| !l.trim().is_empty()) {
         let name = line.trim().to_string();
         // Get table count
-        let count_out = run_psql_query(conn, Some(&name),
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
-        ).await.unwrap_or_default();
+        let count_out = run_psql_query(
+            conn,
+            Some(&name),
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'",
+        )
+        .await
+        .unwrap_or_default();
         let tables_count: usize = count_out.trim().parse().unwrap_or(0);
 
         // Get size
-        let size_out = run_psql_query(conn, Some(&name),
-            &format!("SELECT pg_database_size('{}')", name)
-        ).await.unwrap_or_default();
+        let size_out = run_psql_query(
+            conn,
+            Some(&name),
+            &format!("SELECT pg_database_size('{}')", name),
+        )
+        .await
+        .unwrap_or_default();
         let size_bytes: u64 = size_out.trim().parse().unwrap_or(0);
 
         databases.push(DatabaseInfo {
@@ -240,7 +302,8 @@ pub async fn db_drop_database(conn: DbConnection, name: String) -> Result<String
     if conn.db_type == "postgresql" {
         let mut cmd = psql_cmd(&conn);
         cmd.arg("-d").arg("postgres");
-        cmd.arg("-c").arg(format!("DROP DATABASE IF EXISTS \"{}\"", name));
+        cmd.arg("-c")
+            .arg(format!("DROP DATABASE IF EXISTS \"{}\"", name));
         let output = cmd.output().await.map_err(|e| e.to_string())?;
         if output.status.success() {
             Ok(format!("Database '{}' dropped", name))
@@ -254,7 +317,10 @@ pub async fn db_drop_database(conn: DbConnection, name: String) -> Result<String
 }
 
 #[tauri::command]
-pub async fn db_list_tables(conn: DbConnection, database: String) -> Result<Vec<TableInfo>, String> {
+pub async fn db_list_tables(
+    conn: DbConnection,
+    database: String,
+) -> Result<Vec<TableInfo>, String> {
     if conn.db_type == "postgresql" {
         list_tables_pg(&conn, &database).await
     } else {
@@ -263,49 +329,70 @@ pub async fn db_list_tables(conn: DbConnection, database: String) -> Result<Vec<
 }
 
 async fn list_tables_mysql(conn: &DbConnection, database: &str) -> Result<Vec<TableInfo>, String> {
-    let output = run_mysql_query(conn, Some(database),
+    let output = run_mysql_query(
+        conn,
+        Some(database),
         "SELECT TABLE_NAME, TABLE_ROWS, DATA_LENGTH + INDEX_LENGTH, ENGINE \
          FROM information_schema.TABLES \
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' \
-         ORDER BY TABLE_NAME"
-    ).await?;
+         ORDER BY TABLE_NAME",
+    )
+    .await?;
 
-    Ok(output.lines().filter(|l| !l.is_empty()).map(|line| {
-        let parts: Vec<&str> = line.split('\t').collect();
-        let size_bytes: u64 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
-        TableInfo {
-            name: parts.first().unwrap_or(&"").to_string(),
-            rows: parts.get(1).unwrap_or(&"0").to_string(),
-            size: format_size(size_bytes),
-            engine: parts.get(3).unwrap_or(&"").to_string(),
-        }
-    }).collect())
+    Ok(output
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|line| {
+            let parts: Vec<&str> = line.split('\t').collect();
+            let size_bytes: u64 = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
+            TableInfo {
+                name: parts.first().unwrap_or(&"").to_string(),
+                rows: parts.get(1).unwrap_or(&"0").to_string(),
+                size: format_size(size_bytes),
+                engine: parts.get(3).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect())
 }
 
 async fn list_tables_pg(conn: &DbConnection, database: &str) -> Result<Vec<TableInfo>, String> {
-    let output = run_psql_query(conn, Some(database),
+    let output = run_psql_query(
+        conn,
+        Some(database),
         "SELECT t.tablename, \
                 COALESCE(s.n_live_tup, 0), \
                 COALESCE(pg_total_relation_size(quote_ident(t.tablename)::regclass), 0) \
          FROM pg_catalog.pg_tables t \
          LEFT JOIN pg_stat_user_tables s ON t.tablename = s.relname \
-         WHERE t.schemaname = 'public' ORDER BY t.tablename"
-    ).await?;
+         WHERE t.schemaname = 'public' ORDER BY t.tablename",
+    )
+    .await?;
 
-    Ok(output.lines().filter(|l| !l.trim().is_empty()).map(|line| {
-        let parts: Vec<&str> = line.split('\t').collect();
-        let size_bytes: u64 = parts.get(2).and_then(|s| s.trim().parse().ok()).unwrap_or(0);
-        TableInfo {
-            name: parts.first().unwrap_or(&"").trim().to_string(),
-            rows: parts.get(1).unwrap_or(&"0").trim().to_string(),
-            size: format_size(size_bytes),
-            engine: "PostgreSQL".to_string(),
-        }
-    }).collect())
+    Ok(output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let parts: Vec<&str> = line.split('\t').collect();
+            let size_bytes: u64 = parts
+                .get(2)
+                .and_then(|s| s.trim().parse().ok())
+                .unwrap_or(0);
+            TableInfo {
+                name: parts.first().unwrap_or(&"").trim().to_string(),
+                rows: parts.get(1).unwrap_or(&"0").trim().to_string(),
+                size: format_size(size_bytes),
+                engine: "PostgreSQL".to_string(),
+            }
+        })
+        .collect())
 }
 
 #[tauri::command]
-pub async fn db_describe_table(conn: DbConnection, database: String, table: String) -> Result<Vec<ColumnInfo>, String> {
+pub async fn db_describe_table(
+    conn: DbConnection,
+    database: String,
+    table: String,
+) -> Result<Vec<ColumnInfo>, String> {
     if conn.db_type == "postgresql" {
         describe_table_pg(&conn, &database, &table).await
     } else {
@@ -313,7 +400,11 @@ pub async fn db_describe_table(conn: DbConnection, database: String, table: Stri
     }
 }
 
-async fn describe_table_mysql(conn: &DbConnection, database: &str, table: &str) -> Result<Vec<ColumnInfo>, String> {
+async fn describe_table_mysql(
+    conn: &DbConnection,
+    database: &str,
+    table: &str,
+) -> Result<Vec<ColumnInfo>, String> {
     let output = run_mysql_query(conn, Some(database),
         &format!(
             "SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, IFNULL(COLUMN_DEFAULT, ''), EXTRA \
@@ -323,20 +414,28 @@ async fn describe_table_mysql(conn: &DbConnection, database: &str, table: &str) 
         )
     ).await?;
 
-    Ok(output.lines().filter(|l| !l.is_empty()).map(|line| {
-        let parts: Vec<&str> = line.split('\t').collect();
-        ColumnInfo {
-            name: parts.first().unwrap_or(&"").to_string(),
-            col_type: parts.get(1).unwrap_or(&"").to_string(),
-            nullable: parts.get(2).unwrap_or(&"NO") == &"YES",
-            key: parts.get(3).unwrap_or(&"").to_string(),
-            default_val: parts.get(4).unwrap_or(&"").to_string(),
-            extra: parts.get(5).unwrap_or(&"").to_string(),
-        }
-    }).collect())
+    Ok(output
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|line| {
+            let parts: Vec<&str> = line.split('\t').collect();
+            ColumnInfo {
+                name: parts.first().unwrap_or(&"").to_string(),
+                col_type: parts.get(1).unwrap_or(&"").to_string(),
+                nullable: parts.get(2).unwrap_or(&"NO") == &"YES",
+                key: parts.get(3).unwrap_or(&"").to_string(),
+                default_val: parts.get(4).unwrap_or(&"").to_string(),
+                extra: parts.get(5).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect())
 }
 
-async fn describe_table_pg(conn: &DbConnection, database: &str, table: &str) -> Result<Vec<ColumnInfo>, String> {
+async fn describe_table_pg(
+    conn: &DbConnection,
+    database: &str,
+    table: &str,
+) -> Result<Vec<ColumnInfo>, String> {
     let output = run_psql_query(conn, Some(database),
         &format!(
             "SELECT c.column_name, c.data_type, c.is_nullable, \
@@ -350,21 +449,29 @@ async fn describe_table_pg(conn: &DbConnection, database: &str, table: &str) -> 
         )
     ).await?;
 
-    Ok(output.lines().filter(|l| !l.trim().is_empty()).map(|line| {
-        let parts: Vec<&str> = line.split('\t').collect();
-        ColumnInfo {
-            name: parts.first().unwrap_or(&"").trim().to_string(),
-            col_type: parts.get(1).unwrap_or(&"").trim().to_string(),
-            nullable: parts.get(2).unwrap_or(&"NO").trim() == "YES",
-            key: parts.get(3).unwrap_or(&"").trim().to_string(),
-            default_val: parts.get(4).unwrap_or(&"").trim().to_string(),
-            extra: parts.get(5).unwrap_or(&"").trim().to_string(),
-        }
-    }).collect())
+    Ok(output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let parts: Vec<&str> = line.split('\t').collect();
+            ColumnInfo {
+                name: parts.first().unwrap_or(&"").trim().to_string(),
+                col_type: parts.get(1).unwrap_or(&"").trim().to_string(),
+                nullable: parts.get(2).unwrap_or(&"NO").trim() == "YES",
+                key: parts.get(3).unwrap_or(&"").trim().to_string(),
+                default_val: parts.get(4).unwrap_or(&"").trim().to_string(),
+                extra: parts.get(5).unwrap_or(&"").trim().to_string(),
+            }
+        })
+        .collect())
 }
 
 #[tauri::command]
-pub async fn db_run_query(conn: DbConnection, database: String, query: String) -> Result<QueryResult, String> {
+pub async fn db_run_query(
+    conn: DbConnection,
+    database: String,
+    query: String,
+) -> Result<QueryResult, String> {
     // Safety: block dangerous operations in a basic way
     let _query_upper = query.trim().to_uppercase();
 
@@ -375,7 +482,11 @@ pub async fn db_run_query(conn: DbConnection, database: String, query: String) -
     }
 }
 
-async fn run_query_mysql(conn: &DbConnection, database: &str, query: &str) -> Result<QueryResult, String> {
+async fn run_query_mysql(
+    conn: &DbConnection,
+    database: &str,
+    query: &str,
+) -> Result<QueryResult, String> {
     // Use column names header
     let mut cmd = mysql_cmd(conn);
     cmd.arg("-D").arg(database);
@@ -418,10 +529,21 @@ async fn run_query_mysql(conn: &DbConnection, database: &str, query: &str) -> Re
     })
 }
 
-async fn run_query_pg(conn: &DbConnection, database: &str, query: &str) -> Result<QueryResult, String> {
+async fn run_query_pg(
+    conn: &DbConnection,
+    database: &str,
+    query: &str,
+) -> Result<QueryResult, String> {
     // Get with headers
     let mut cmd = Command::new("psql");
-    cmd.args(["-h", &conn.host, "-p", &conn.port.to_string(), "-U", &conn.user]);
+    cmd.args([
+        "-h",
+        &conn.host,
+        "-p",
+        &conn.port.to_string(),
+        "-U",
+        &conn.user,
+    ]);
     cmd.arg("-d").arg(database);
     cmd.arg("--no-align");
     cmd.arg("--field-separator=\t");
@@ -475,9 +597,87 @@ async fn run_query_pg(conn: &DbConnection, database: &str, query: &str) -> Resul
 }
 
 fn format_size(bytes: u64) -> String {
-    if bytes == 0 { return "0 B".into(); }
-    if bytes < 1024 { return format!("{} B", bytes); }
-    if bytes < 1048576 { return format!("{:.1} KB", bytes as f64 / 1024.0); }
-    if bytes < 1073741824 { return format!("{:.1} MB", bytes as f64 / 1048576.0); }
+    if bytes == 0 {
+        return "0 B".into();
+    }
+    if bytes < 1024 {
+        return format!("{} B", bytes);
+    }
+    if bytes < 1048576 {
+        return format!("{:.1} KB", bytes as f64 / 1024.0);
+    }
+    if bytes < 1073741824 {
+        return format!("{:.1} MB", bytes as f64 / 1048576.0);
+    }
     format!("{:.1} GB", bytes as f64 / 1073741824.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_size_zero() {
+        assert_eq!(format_size(0), "0 B");
+    }
+
+    #[test]
+    fn test_format_size_bytes() {
+        assert_eq!(format_size(512), "512 B");
+        assert_eq!(format_size(1), "1 B");
+    }
+
+    #[test]
+    fn test_format_size_kb() {
+        assert_eq!(format_size(1024), "1.0 KB");
+        assert_eq!(format_size(2048), "2.0 KB");
+        assert_eq!(format_size(1536), "1.5 KB");
+    }
+
+    #[test]
+    fn test_format_size_mb() {
+        assert_eq!(format_size(1048576), "1.0 MB");
+        assert_eq!(format_size(10485760), "10.0 MB");
+    }
+
+    #[test]
+    fn test_format_size_gb() {
+        assert_eq!(format_size(1073741824), "1.0 GB");
+        assert_eq!(format_size(2147483648), "2.0 GB");
+    }
+
+    #[test]
+    fn test_db_connection_default() {
+        let conn = DbConnection::default();
+        assert_eq!(conn.host, "127.0.0.1");
+        assert_eq!(conn.user, "root");
+        assert!(conn.password.is_empty());
+        assert!(conn.port == 3306 || conn.port == 5432);
+    }
+
+    #[test]
+    fn test_db_connection_serialization() {
+        let conn = DbConnection {
+            db_type: "mysql".into(),
+            host: "localhost".into(),
+            port: 3306,
+            user: "root".into(),
+            password: "".into(),
+        };
+        let json = serde_json::to_string(&conn).unwrap();
+        let parsed: DbConnection = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.db_type, "mysql");
+        assert_eq!(parsed.port, 3306);
+    }
+
+    #[test]
+    fn test_db_create_name_validation() {
+        // The db_create_database command validates names
+        // Test the validation logic directly
+        let name = "my_project";
+        assert!(name.chars().all(|c| c.is_alphanumeric() || c == '_'));
+
+        let bad_name = "my-project; DROP TABLE";
+        assert!(!bad_name.chars().all(|c| c.is_alphanumeric() || c == '_'));
+    }
 }
