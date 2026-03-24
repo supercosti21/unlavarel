@@ -1,42 +1,42 @@
-/* MacEnv Design System — Linear.app inspired */
+/* MacEnv Design System — GitHub/Vercel inspired */
 
 :root {
-  /* Background */
-  --color-bg-primary: #0a0a0f;
-  --color-bg-secondary: #12121a;
-  --color-bg-tertiary: #1a1a25;
-  --color-bg-card: #16161f;
-  --color-bg-hover: #1e1e2a;
-  --color-bg-input: #0e0e16;
+  /* Background — neutral charcoal (GitHub dark) */
+  --color-bg-primary: #0d1117;
+  --color-bg-secondary: #161b22;
+  --color-bg-tertiary: #21262d;
+  --color-bg-card: #161b22;
+  --color-bg-hover: #1c2128;
+  --color-bg-input: #0d1117;
 
-  /* Borders */
-  --color-border: #2a2a3a;
-  --color-border-subtle: #1f1f2f;
-  --color-border-focus: #8b5cf6;
+  /* Borders — subtle blue-grey */
+  --color-border: #30363d;
+  --color-border-subtle: #21262d;
+  --color-border-focus: #58a6ff;
 
-  /* Text */
-  --color-text-primary: #e8e8ed;
-  --color-text-secondary: #8888a0;
-  --color-text-muted: #555570;
-  --color-text-inverse: #0a0a0f;
+  /* Text — high contrast whites */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-muted: #484f58;
+  --color-text-inverse: #0d1117;
   --color-text-on-accent: #ffffff;
 
-  /* Accent — purple (primary actions) */
-  --color-accent: #8b5cf6;
-  --color-accent-hover: #7c3aed;
-  --color-accent-subtle: rgba(139, 92, 246, 0.15);
+  /* Accent — clean blue (GitHub/Vercel) */
+  --color-accent: #58a6ff;
+  --color-accent-hover: #79c0ff;
+  --color-accent-subtle: rgba(56, 139, 253, 0.15);
 
   /* Status — green (running/success) */
-  --color-success: #22c55e;
-  --color-success-subtle: rgba(34, 197, 94, 0.15);
+  --color-success: #3fb950;
+  --color-success-subtle: rgba(63, 185, 80, 0.15);
 
   /* Status — red (stopped/error) */
-  --color-danger: #ef4444;
-  --color-danger-subtle: rgba(239, 68, 68, 0.15);
+  --color-danger: #f85149;
+  --color-danger-subtle: rgba(248, 81, 73, 0.15);
 
   /* Status — yellow (warning/transitioning) */
-  --color-warning: #eab308;
-  --color-warning-subtle: rgba(234, 179, 8, 0.15);
+  --color-warning: #d29922;
+  --color-warning-subtle: rgba(210, 153, 34, 0.15);
 
   /* Typography */
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -80,8 +80,8 @@
   --shadow-glow-danger: 0 0 8px rgba(239, 68, 68, 0.3);
 
   /* Info status */
-  --color-info: #3b82f6;
-  --color-info-subtle: rgba(59, 130, 246, 0.15);
+  --color-info: #58a6ff;
+  --color-info-subtle: rgba(88, 166, 255, 0.15);
 
   /* Transitions */
   --transition-fast: 150ms ease;
@@ -109,28 +109,45 @@
   --statusbar-height: 32px;
 }
 
-/* Light theme override */
+/* Light theme — Vercel/Linear inspired */
 [data-theme="light"] {
-  --color-bg-primary: #f8f8fa;
-  --color-bg-secondary: #ffffff;
-  --color-bg-tertiary: #f0f0f4;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #fafafa;
+  --color-bg-tertiary: #f5f5f5;
   --color-bg-card: #ffffff;
-  --color-bg-hover: #f0f0f4;
-  --color-bg-input: #f0f0f4;
+  --color-bg-hover: #f5f5f5;
+  --color-bg-input: #ffffff;
 
-  --color-border: #e0e0e8;
-  --color-border-subtle: #eaeaf0;
+  --color-border: #e5e5e5;
+  --color-border-subtle: #ebebeb;
+  --color-border-focus: #0969da;
 
-  --color-text-primary: #1a1a2e;
-  --color-text-secondary: #6b6b80;
-  --color-text-muted: #9999aa;
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #666666;
+  --color-text-muted: #999999;
   --color-text-inverse: #ffffff;
   --color-text-on-accent: #ffffff;
 
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-glow-success: 0 0 8px rgba(34, 197, 94, 0.2);
-  --shadow-glow-danger: 0 0 8px rgba(239, 68, 68, 0.15);
+  --color-accent: #0969da;
+  --color-accent-hover: #0550ae;
+  --color-accent-subtle: rgba(9, 105, 218, 0.1);
+
+  --color-success: #1a7f37;
+  --color-success-subtle: rgba(26, 127, 55, 0.1);
+
+  --color-danger: #cf222e;
+  --color-danger-subtle: rgba(207, 34, 46, 0.1);
+
+  --color-warning: #9a6700;
+  --color-warning-subtle: rgba(154, 103, 0, 0.1);
+
+  --color-info: #0969da;
+  --color-info-subtle: rgba(9, 105, 218, 0.1);
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-glow-success: 0 0 6px rgba(26, 127, 55, 0.15);
+  --shadow-glow-danger: 0 0 6px rgba(207, 34, 46, 0.12);
 }
 
 /* Reset */
@@ -277,7 +294,7 @@ input:not([type="checkbox"]):not([type="radio"]), select {
 }
 
 select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238888a0' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right var(--space-3) center;
   padding-right: var(--space-8);
