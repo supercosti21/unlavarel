@@ -51,30 +51,125 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # Build + create release on tags, just build on push to main
       - name: Build Tauri app
+        id: tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: ${{ matrix.args }}
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: ${{ github.ref_type == 'tag' && format('MacEnv {0}', github.ref_name) || '' }}
-          releaseBody: "Cross-platform local development environment manager."
-          releaseDraft: true
-          prerelease: false
 
-      # Always upload artifacts (even without tag) so you can download them
+      # Collect all built files into a flat folder for upload
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          find src-tauri/target -type f \( \
+            -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" \
+            -o -name "*.msi" -o -name "*.exe" -o -name "*.rpm" \
+          \) -exec cp {} artifacts/ \;
+          ls -la artifacts/
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macenv-${{ matrix.platform }}
-          path: |
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.app
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.msi
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/universal-apple-darwin/release/bundle/**/*.dmg
-          retention-days: 14
+          name: unlavarel-${{ matrix.platform }}
+          path: artifacts/*
+          retention-days: 30
+
+  # After all 3 platforms build, create/update the "latest" release
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Download all artifacts from build jobs
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          merge-multiple: false
+
+      # Flatten into one folder
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find all-artifacts -type f \( \
+            -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" \
+            -o -name "*.msi" -o -name "*.exe" -o -name "*.rpm" \
+          \) -exec cp {} release/ \;
+          echo "Release files:"
+          ls -lh release/
+
+      # Delete old "latest" release + tag, then recreate
+      - name: Update latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Unlavarel — Latest Build"
+          body: |
+            **Auto-updated on every push to main.**
+            Last built: ${{ github.sha }}
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | macOS (universal) | `.dmg` |
+            | Linux | `.AppImage` / `.deb` |
+            | Windows | `.msi` / `.exe` |
+
+            > ⚠️ macOS: first launch requires `xattr -rd com.apple.quarantine Unlavarel.app`
+          draft: false
+          prerelease: true
+          make_latest: true
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Versioned release when you push a tag like v0.1.0
+  versioned-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          merge-multiple: false
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find all-artifacts -type f \( \
+            -name "*.dmg" -o -name "*.AppImage" -o -name "*.deb" \
+            -o -name "*.msi" -o -name "*.exe" -o -name "*.rpm" \
+          \) -exec cp {} release/ \;
+
+      - name: Create versioned release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Unlavarel ${{ github.ref_name }}"
+          body: |
+            ## Unlavarel ${{ github.ref_name }}
+
+            Cross-platform local development environment manager.
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | macOS (universal) | `.dmg` |
+            | Linux | `.AppImage` / `.deb` |
+            | Windows | `.msi` / `.exe` |
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
