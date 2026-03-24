@@ -2,7 +2,7 @@
 
 ## Overview
 
-MacEnv integrates **Mailpit** for email testing. Mailpit captures all outgoing email from your PHP applications and provides a web UI to inspect them — no emails ever leave your machine.
+Unlavarel integrates **Mailpit** for email testing. Mailpit captures all outgoing email from your PHP applications and provides a web UI to inspect them — no emails ever leave your machine.
 
 ## How It Works
 
@@ -13,7 +13,7 @@ PHP Application → mail() → Mailpit SMTP (port 1025) → Mailpit Web UI (port
 1. PHP's `sendmail_path` is configured to route through Mailpit
 2. Mailpit captures all emails on SMTP port 1025
 3. The Mailpit web UI displays captured emails on port 8025
-4. MacEnv embeds the Mailpit UI in the **Mail** tab
+4. Unlavarel embeds the Mailpit UI in the **Mail** tab
 
 ## Installation
 
@@ -32,7 +32,7 @@ yay -S mailpit
 
 ## PHP Configuration
 
-MacEnv automatically configures PHP to use Mailpit. In `php.ini`:
+Unlavarel automatically configures PHP to use Mailpit. In `php.ini`:
 
 ```ini
 ; macOS (Homebrew)
@@ -48,7 +48,7 @@ This means any call to `mail()`, `Laravel's Mail facade`, or any PHP mailer send
 
 The Mailpit web UI is accessible at:
 - **URL**: `http://localhost:8025`
-- **Embedded**: Available in the MacEnv **Mail** tab
+- **Embedded**: Available in the Unlavarel **Mail** tab
 
 Features of the Mailpit UI:
 - View all captured emails

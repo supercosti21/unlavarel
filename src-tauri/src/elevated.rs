@@ -124,7 +124,7 @@ pub async fn run_script_elevated(script: &str) -> Result<std::process::Output, S
     }
 
     // Write script to temp file and run with pkexec
-    let script_path = "/tmp/macenv_elevated.sh";
+    let script_path = "/tmp/unlavarel_elevated.sh";
     tokio::fs::write(script_path, script)
         .await
         .map_err(|e| e.to_string())?;

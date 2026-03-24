@@ -2,7 +2,7 @@
 
 ## Overview
 
-MacEnv uses your system's native package manager to install and manage development tools. This means:
+Unlavarel uses your system's native package manager to install and manage development tools. This means:
 
 - No bloated bundles — packages are shared with the rest of your system
 - Automatic updates via your package manager's update mechanism
@@ -41,7 +41,7 @@ pub trait PackageManager: Send + Sync {
 
 ## Package Name Registry
 
-The same software has different package names across managers. MacEnv resolves this via `packages.toml`:
+The same software has different package names across managers. Unlavarel resolves this via `packages.toml`:
 
 ```toml
 [php.managers.homebrew]
@@ -106,7 +106,7 @@ Each mapping can include:
 
 ## Automatic Platform Detection
 
-MacEnv detects the platform at startup:
+Unlavarel detects the platform at startup:
 
 ```rust
 pub fn create_package_manager() -> Box<dyn PackageManager> {

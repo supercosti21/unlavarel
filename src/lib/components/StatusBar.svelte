@@ -42,7 +42,7 @@
     <button class="btn-icon statusbar__refresh" onclick={refreshServices} aria-label="Refresh services" disabled={refreshing}>
       <Icon name="refresh" size={12} />
     </button>
-    <span class="statusbar__item mono">MacEnv v0.1.0</span>
+    <span class="statusbar__item mono">Unlavarel v0.1.0</span>
   </div>
 </footer>
 

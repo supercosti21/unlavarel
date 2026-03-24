@@ -1,4 +1,4 @@
-/* MacEnv Design System — GitHub/Vercel inspired */
+/* Unlavarel Design System — GitHub/Vercel inspired */
 
 :root {
   /* Background — neutral charcoal (GitHub dark) */
@@ -109,28 +109,28 @@
   --statusbar-height: 32px;
 }
 
-/* Light theme — soft grey, easy on the eyes */
+/* Light theme — warm grey, low contrast, easy on the eyes */
 [data-theme="light"] {
-  --color-bg-primary: #f0f0f3;
-  --color-bg-secondary: #e8e8ec;
-  --color-bg-tertiary: #dfdfe4;
-  --color-bg-card: #eaeaee;
-  --color-bg-hover: #e2e2e7;
-  --color-bg-input: #e8e8ec;
+  --color-bg-primary: #f3f3f6;
+  --color-bg-secondary: #ededf0;
+  --color-bg-tertiary: #e6e6ea;
+  --color-bg-card: #ededf0;
+  --color-bg-hover: #e8e8ec;
+  --color-bg-input: #ededf0;
 
-  --color-border: #d0d0d8;
-  --color-border-subtle: #d8d8e0;
-  --color-border-focus: #3574d2;
+  --color-border: #dcdce2;
+  --color-border-subtle: #e2e2e8;
+  --color-border-focus: #5a8fd4;
 
-  --color-text-primary: #24292f;
-  --color-text-secondary: #57606a;
-  --color-text-muted: #8b8fa2;
-  --color-text-inverse: #f0f0f3;
+  --color-text-primary: #2e3338;
+  --color-text-secondary: #656d76;
+  --color-text-muted: #9198a1;
+  --color-text-inverse: #f3f3f6;
   --color-text-on-accent: #ffffff;
 
-  --color-accent: #3574d2;
-  --color-accent-hover: #2b60b0;
-  --color-accent-subtle: rgba(53, 116, 210, 0.1);
+  --color-accent: #5a8fd4;
+  --color-accent-hover: #4a7dbe;
+  --color-accent-subtle: rgba(90, 143, 212, 0.1);
 
   --color-success: #1a7f37;
   --color-success-subtle: rgba(26, 127, 55, 0.1);
@@ -141,8 +141,8 @@
   --color-warning: #9a6700;
   --color-warning-subtle: rgba(154, 103, 0, 0.1);
 
-  --color-info: #3574d2;
-  --color-info-subtle: rgba(53, 116, 210, 0.1);
+  --color-info: #5a8fd4;
+  --color-info-subtle: rgba(90, 143, 212, 0.1);
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.1);

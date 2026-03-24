@@ -177,7 +177,7 @@
     <Titlebar />
     <div class="app--loading">
       <div class="app__splash">
-        <h1>MacEnv</h1>
+        <h1>Unlavarel</h1>
         <p>Loading...</p>
       </div>
     </div>

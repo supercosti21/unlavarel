@@ -1,6 +1,6 @@
-# MacEnv Wiki
+# Unlavarel Wiki
 
-Welcome to the MacEnv wiki. MacEnv is a cross-platform local development environment manager — open source, free, and built for performance.
+Welcome to the Unlavarel wiki. Unlavarel is a cross-platform local development environment manager — open source, free, and built for performance.
 
 ## Quick Links
 
@@ -16,20 +16,20 @@ Welcome to the MacEnv wiki. MacEnv is a cross-platform local development environ
 - [CI/CD Pipeline](CI-CD.md)
 - [Roadmap](Roadmap.md)
 
-## What is MacEnv?
+## What is Unlavarel?
 
-MacEnv is a lightweight GUI application that manages your local development stack. It installs and controls services like PHP, MySQL, Nginx, Redis, and more through your system's native package manager.
+Unlavarel is a lightweight GUI application that manages your local development stack. It installs and controls services like PHP, MySQL, Nginx, Redis, and more through your system's native package manager.
 
 ### Key Principles
 
-1. **No bundled binaries** — MacEnv is a control panel, not a distribution. Services are installed via Homebrew (macOS), apt/pacman (Linux), or winget (Windows).
+1. **No bundled binaries** — Unlavarel is a control panel, not a distribution. Services are installed via Homebrew (macOS), apt/pacman (Linux), or winget (Windows).
 2. **Zero root for daily use** — On macOS, Homebrew and dnsmasq operate without sudo. On Linux, systemctl user services are used where possible.
 3. **Native performance** — Rust backend with Tauri v2, ~10MB RAM footprint, sub-second startup.
 4. **Cross-platform** — Same features on macOS, Linux, and Windows.
 
 ### Comparison with Alternatives
 
-| Feature | MacEnv | Laragon | MAMP | Herd | Valet |
+| Feature | Unlavarel | Laragon | MAMP | Herd | Valet |
 |---------|--------|---------|------|------|-------|
 | macOS | Yes | No | Yes | Yes | Yes |
 | Linux | Yes | No | No | No | Partial |

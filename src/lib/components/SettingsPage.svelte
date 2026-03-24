@@ -114,7 +114,7 @@
     <div class="settings__sections">
       <section class="settings__section">
         <h3>Appearance</h3>
-        <p class="settings__desc">Customize the look and feel of MacEnv.</p>
+        <p class="settings__desc">Customize the look and feel of Unlavarel.</p>
         <div class="settings__field">
           <label for="theme">Theme</label>
           <select id="theme" bind:value={settings.theme}>
@@ -219,7 +219,7 @@
 
       <section class="settings__section">
         <h3>Installed Packages</h3>
-        <p class="settings__desc">Manage packages installed by MacEnv. Uninstalling will stop the service and remove the package.</p>
+        <p class="settings__desc">Manage packages installed by Unlavarel. Uninstalling will stop the service and remove the package.</p>
         {#if installedServices.length > 0}
           <div class="settings__packages">
             {#each installedServices as svc}

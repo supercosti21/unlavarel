@@ -18,7 +18,7 @@
 
 <header class="titlebar">
   <div class="titlebar__drag" data-tauri-drag-region>
-    <span class="titlebar__title" data-tauri-drag-region>MacEnv</span>
+    <span class="titlebar__title" data-tauri-drag-region>Unlavarel</span>
   </div>
   <div class="titlebar__controls">
     <button class="titlebar__btn" onclick={minimize} aria-label="Minimize">

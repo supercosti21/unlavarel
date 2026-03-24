@@ -94,7 +94,7 @@ To add support for a new service (e.g., MongoDB):
 
 Please include:
 - OS and version
-- MacEnv version
+- Unlavarel version
 - Steps to reproduce
 - Expected vs actual behavior
 - Relevant log output

@@ -4,13 +4,13 @@
 
 ### All Platforms
 - 64-bit operating system
-- 512MB free RAM (MacEnv uses ~10MB, services use more)
+- 512MB free RAM (Unlavarel uses ~10MB, services use more)
 - Internet connection for initial package installation
 
 ### macOS
 - macOS 11 Big Sur or later
 - Xcode Command Line Tools: `xcode-select --install`
-- Homebrew is installed automatically by MacEnv if not present
+- Homebrew is installed automatically by Unlavarel if not present
 
 ### Linux
 - **Ubuntu/Debian** 22.04+
@@ -30,7 +30,7 @@
 
 1. Download the latest release for your platform from [GitHub Releases](../../releases)
 2. Install:
-   - **macOS**: Open the `.dmg`, drag MacEnv to Applications. First run: `xattr -rd com.apple.quarantine /Applications/MacEnv.app`
+   - **macOS**: Open the `.dmg`, drag Unlavarel to Applications. First run: `xattr -rd com.apple.quarantine /Applications/Unlavarel.app`
    - **Linux**: Use the `.AppImage` (make executable with `chmod +x`) or install the `.deb`
    - **Windows**: Run the `.msi` installer
 
@@ -47,11 +47,11 @@ npm run tauri build  # Production build
 
 ## First Run — Setup Wizard
 
-On first launch, MacEnv runs a setup wizard:
+On first launch, Unlavarel runs a setup wizard:
 
 ### Step 1: Package Manager Check
-MacEnv checks for your platform's package manager:
-- **macOS**: Homebrew — if not installed, MacEnv installs it automatically
+Unlavarel checks for your platform's package manager:
+- **macOS**: Homebrew — if not installed, Unlavarel installs it automatically
 - **Linux**: Detects apt, pacman, or dnf
 - **Windows**: Checks for winget
 
@@ -70,15 +70,15 @@ Choose your development stack:
 | Tools | Composer, Node.js 18/20/22 |
 
 ### Step 3: Installation
-MacEnv installs selected packages via your native package manager. A progress bar shows installation status.
+Unlavarel installs selected packages via your native package manager. A progress bar shows installation status.
 
 ### Step 4: DNS Configuration
-MacEnv configures dnsmasq so that all `*.test` domains resolve to `127.0.0.1`. On macOS, it also creates a resolver file at `/etc/resolver/test`.
+Unlavarel configures dnsmasq so that all `*.test` domains resolve to `127.0.0.1`. On macOS, it also creates a resolver file at `/etc/resolver/test`.
 
 ## Daily Usage
 
 ### Starting Services
-1. Open MacEnv
+1. Open Unlavarel
 2. The Dashboard shows all services with status indicators
 3. Click **Start** on any service to start it
 4. Click **Start All** to start everything
@@ -87,7 +87,7 @@ MacEnv configures dnsmasq so that all `*.test` domains resolve to `127.0.0.1`. O
 1. Go to **Projects** tab
 2. Click **Add Site**
 3. Enter project name and select folder
-4. MacEnv automatically:
+4. Unlavarel automatically:
    - Creates an Nginx virtual host
    - Generates an SSL certificate via mkcert
    - Configures DNS (`projectname.test`)

@@ -61,7 +61,7 @@
       <Icon name="lock" size={24} />
     </div>
     <h3 id="pwd-title">Authentication Required</h3>
-    <p>MacEnv needs your system password to start and stop services. Your password is only stored in memory for this session.</p>
+    <p>Unlavarel needs your system password to start and stop services. Your password is only stored in memory for this session.</p>
 
     <input
       type="password"

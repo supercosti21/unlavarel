@@ -4,7 +4,7 @@
 
 ```
 ┌──────────────────────────────────────────────────┐
-│                   MacEnv GUI                      │
+│                   Unlavarel GUI                      │
 │              (Svelte 5 Frontend)                  │
 │                                                   │
 │  ┌───────────┐ ┌──────────┐ ┌───────────────┐   │
@@ -162,7 +162,7 @@ This TOML-based approach is extensible without recompiling.
 
 ### Svelte 5 Runes
 
-MacEnv uses Svelte 5's rune system instead of legacy stores:
+Unlavarel uses Svelte 5's rune system instead of legacy stores:
 
 - `$state()` — reactive state variables
 - `$derived()` — computed values

@@ -7,7 +7,7 @@ use crate::error::{MacEnvError, Result};
 pub fn certs_dir() -> PathBuf {
     let data_dir = dirs_next::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("macenv")
+        .join("unlavarel")
         .join("certs");
     std::fs::create_dir_all(&data_dir).ok();
     data_dir

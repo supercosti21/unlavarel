@@ -1,4 +1,4 @@
-# MacEnv
+# Unlavarel
 
 A cross-platform local development environment manager. Open source, free, and built for performance.
 

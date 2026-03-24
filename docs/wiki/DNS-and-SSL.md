@@ -4,7 +4,7 @@
 
 ### How It Works
 
-Instead of editing `/etc/hosts` for every new project, MacEnv uses **dnsmasq** to resolve all `*.test` domains to `127.0.0.1`. This means:
+Instead of editing `/etc/hosts` for every new project, Unlavarel uses **dnsmasq** to resolve all `*.test` domains to `127.0.0.1`. This means:
 
 - Any `something.test` domain automatically resolves to localhost
 - No manual host file editing
@@ -16,7 +16,7 @@ Instead of editing `/etc/hosts` for every new project, MacEnv uses **dnsmasq** t
 On macOS, dnsmasq runs as a user-level service via Homebrew (no root required for the service itself):
 
 ```bash
-# MacEnv runs these automatically:
+# Unlavarel runs these automatically:
 brew install dnsmasq
 
 # Configure dnsmasq to resolve *.test to 127.0.0.1
@@ -77,7 +77,7 @@ Self-signed certificates trigger browser warnings. **mkcert** creates certificat
 ### Setup
 
 ```bash
-# MacEnv runs these automatically:
+# Unlavarel runs these automatically:
 brew install mkcert  # or equivalent
 
 # Install the local CA into system trust stores
@@ -92,7 +92,7 @@ The `mkcert -install` command adds a CA certificate to:
 
 ### Generating Certificates
 
-When MacEnv creates a project, it generates a trusted certificate:
+When Unlavarel creates a project, it generates a trusted certificate:
 
 ```bash
 cd ~/.local/share/macenv/certs/
@@ -116,7 +116,7 @@ Certificates are stored at:
 
 ### Wildcard Certificates
 
-For multi-tenant applications, MacEnv can generate wildcard certs:
+For multi-tenant applications, Unlavarel can generate wildcard certs:
 
 ```bash
 mkcert "*.myapp.test" myapp.test

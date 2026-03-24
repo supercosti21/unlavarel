@@ -52,7 +52,7 @@
 - [ ] Nginx config editor with syntax highlighting
 - [ ] Auto-start services on app launch (uses cached password)
 - [ ] Keyboard shortcuts (Ctrl+1-6 for pages, Ctrl+R refresh)
-- [ ] Real MacEnv logo/icon (replace placeholder purple)
+- [ ] Real Unlavarel logo/icon (replace placeholder purple)
 
 ## v0.3.0 — Advanced Features
 

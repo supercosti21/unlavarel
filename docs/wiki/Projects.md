@@ -2,7 +2,7 @@
 
 ## Overview
 
-MacEnv manages local development projects. Each project gets:
+Unlavarel manages local development projects. Each project gets:
 - An Nginx virtual host configuration
 - A `.test` domain via dnsmasq
 - An SSL certificate via mkcert
@@ -15,7 +15,7 @@ MacEnv manages local development projects. Each project gets:
 2. Click **Add Site**
 3. Enter the project name (e.g., `myapp`)
 4. Select the project folder (e.g., `/Users/you/Code/myapp`)
-5. MacEnv automatically configures everything
+5. Unlavarel automatically configures everything
 
 ### What Happens Behind the Scenes
 
@@ -58,13 +58,13 @@ When you add a project named `myapp` at `/Users/you/Code/myapp`:
 
 ## Quick App Creation
 
-MacEnv can scaffold new projects using popular frameworks:
+Unlavarel can scaffold new projects using popular frameworks:
 
 ### Laravel
 ```bash
 composer create-project laravel/laravel myapp
 ```
-MacEnv runs this, then automatically configures the vhost, SSL, DNS, and database.
+Unlavarel runs this, then automatically configures the vhost, SSL, DNS, and database.
 
 ### WordPress
 Downloads and extracts the latest WordPress, configures `wp-config.php` with the local database credentials.
@@ -98,6 +98,6 @@ Projects are stored in a JSON file at:
 Removing a project:
 1. Deletes the Nginx vhost config
 2. Removes the SSL certificate
-3. Removes the project from MacEnv's list
+3. Removes the project from Unlavarel's list
 
 It does **NOT** delete the project files or database. Those must be removed manually.

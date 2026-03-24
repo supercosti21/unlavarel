@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicehash/tauri/tauri-v2/crates/tauri-cli/schema.json",
-  "productName": "MacEnv",
+  "productName": "Unlavarel",
   "version": "0.1.0",
-  "identifier": "com.macenv.app",
+  "identifier": "com.unlavarel.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "MacEnv",
+        "title": "Unlavarel",
         "width": 1100,
         "height": 720,
         "minWidth": 800,

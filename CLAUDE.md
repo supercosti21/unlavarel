@@ -1,8 +1,8 @@
-# MacEnv - Project Guidelines
+# Unlavarel - Project Guidelines
 
 ## Project Overview
 
-MacEnv is a cross-platform local development environment manager (like Laragon) built with Tauri v2 + Svelte 5 + Rust. It targets Laravel + Filament developers on macOS, Linux, and Windows.
+Unlavarel is a cross-platform local development environment manager (like Laragon) built with Tauri v2 + Svelte 5 + Rust. It targets Laravel + Filament developers on macOS, Linux, and Windows.
 
 ## Architecture
 
@@ -24,7 +24,7 @@ MacEnv is a cross-platform local development environment manager (like Laragon) 
 ```
 src-tauri/src/
   lib.rs              → Tauri builder, command registration
-  error.rs            → MacEnvError enum (thiserror)
+  error.rs            → UnlavarelError enum (thiserror)
   platform/           → OS detection, permissions
   package_manager/    → PackageManager trait + implementations
   service_manager/    → ServiceManager trait + implementations

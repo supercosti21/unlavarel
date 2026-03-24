@@ -2,7 +2,7 @@
 
 ## Overview
 
-MacEnv uses GitHub Actions to build release artifacts for all three platforms. The pipeline is defined in `.github/workflows/build.yml`.
+Unlavarel uses GitHub Actions to build release artifacts for all three platforms. The pipeline is defined in `.github/workflows/build.yml`.
 
 ## Build Matrix
 
@@ -46,7 +46,7 @@ The pipeline runs on:
 
 The current build is **unsigned**. For personal use, users run:
 ```bash
-xattr -rd com.apple.quarantine /Applications/MacEnv.app
+xattr -rd com.apple.quarantine /Applications/Unlavarel.app
 ```
 
 For future releases, Apple Developer ID signing can be added by setting:

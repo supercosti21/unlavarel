@@ -37,7 +37,7 @@ Each service can be in one of four states:
 
 ## Multi-Version PHP
 
-MacEnv supports running multiple PHP versions simultaneously:
+Unlavarel supports running multiple PHP versions simultaneously:
 
 ### macOS (Homebrew)
 ```bash
@@ -90,7 +90,7 @@ PHP configuration (php.ini) paths:
 
 ## Log Viewing
 
-The Terminal component in MacEnv shows real-time logs from services. Logs are sourced from:
+The Terminal component in Unlavarel shows real-time logs from services. Logs are sourced from:
 
 - macOS: Homebrew log files in `$(brew --prefix)/var/log/`
 - Linux: `journalctl` for systemd services

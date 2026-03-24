@@ -2,7 +2,7 @@
 
 ## Overview
 
-MacEnv uses a custom CSS design system inspired by [Linear.app](https://linear.app) — minimal, dense but clean, dark-first.
+Unlavarel uses a custom CSS design system inspired by [Linear.app](https://linear.app) — minimal, dense but clean, dark-first.
 
 **No Tailwind.** All styling uses CSS custom properties defined in `src/app.css`.
 

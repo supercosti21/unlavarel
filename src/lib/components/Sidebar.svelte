@@ -27,7 +27,7 @@
 
 <aside class="sidebar">
   <div class="sidebar__header">
-    <h1 class="sidebar__logo">MacEnv</h1>
+    <h1 class="sidebar__logo">Unlavarel</h1>
     <span class="sidebar__version">v0.1.0</span>
   </div>
 

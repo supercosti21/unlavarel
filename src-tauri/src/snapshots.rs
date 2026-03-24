@@ -15,7 +15,7 @@ pub struct Snapshot {
 fn snapshots_dir() -> PathBuf {
     let dir = dirs_next::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("macenv")
+        .join("unlavarel")
         .join("snapshots");
     std::fs::create_dir_all(&dir).ok();
     dir

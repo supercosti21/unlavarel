@@ -56,7 +56,7 @@ pub struct HealthCheck {
 fn config_dir() -> PathBuf {
     let dir = dirs_next::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("macenv");
+        .join("unlavarel");
     std::fs::create_dir_all(&dir).ok();
     dir
 }

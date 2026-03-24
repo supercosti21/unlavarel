@@ -258,7 +258,7 @@ fn parse_simple_version(output: &str) -> String {
 fn cache_path() -> PathBuf {
     let dir = dirs_next::cache_dir()
         .unwrap_or_else(|| PathBuf::from("/tmp"))
-        .join("macenv");
+        .join("unlavarel");
     std::fs::create_dir_all(&dir).ok();
     dir.join("services_cache.json")
 }

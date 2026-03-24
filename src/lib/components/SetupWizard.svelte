@@ -17,6 +17,8 @@
 
   // Stack selection — will be pre-filled from scan
   let phpVersion = $state("8.3");
+  let phpVersions = $state(["8.1", "8.2", "8.3", "8.4"]);
+  let nodeVersions = $state(["18", "20", "22"]);
   let database = $state("mariadb");
   let dbVersion = $state("");
   let extras = $state(["redis", "mailpit", "node"]);
@@ -60,12 +62,13 @@
     if (!preScan) return;
 
     for (const item of preScan.installed) {
-      // Pre-select PHP version from installed
+      // Pre-select PHP version from installed — add to list if missing
       if (item.id === "php" && item.version_number) {
         const ver = item.version_number;
-        if (["8.1", "8.2", "8.3", "8.4"].includes(ver)) {
-          phpVersion = ver;
+        if (!phpVersions.includes(ver)) {
+          phpVersions = [...phpVersions, ver].sort();
         }
+        phpVersion = ver;
       }
 
       // Pre-select database from installed
@@ -77,12 +80,13 @@
         database = "postgresql";
       }
 
-      // Pre-select node version
+      // Pre-select node version — add to list if missing
       if (item.id === "node" && item.version_number) {
         const ver = item.version_number;
-        if (["18", "20", "22"].includes(ver)) {
-          nodeVersion = ver;
+        if (!nodeVersions.includes(ver)) {
+          nodeVersions = [...nodeVersions, ver].sort((a, b) => Number(a) - Number(b));
         }
+        nodeVersion = ver;
       }
 
       // Auto-toggle extras that are installed
@@ -263,7 +267,7 @@
 
     {:else if step === 1}
       <h2>System Check</h2>
-      <p class="wiz__sub">MacEnv detected the following on your system.</p>
+      <p class="wiz__sub">Unlavarel detected the following on your system.</p>
 
       {#if setupState}
         <div class="wiz__grid">
@@ -367,10 +371,9 @@
             {/if}
           </span>
           <select bind:value={phpVersion}>
-            <option value="8.1">PHP 8.1</option>
-            <option value="8.2">PHP 8.2</option>
-            <option value="8.3">PHP 8.3</option>
-            <option value="8.4">PHP 8.4</option>
+            {#each phpVersions as ver}
+              <option value={ver}>PHP {ver}</option>
+            {/each}
           </select>
         </label>
 
@@ -450,9 +453,9 @@
               {/if}
             </span>
             <select bind:value={nodeVersion}>
-              <option value="18">Node.js 18 LTS</option>
-              <option value="20">Node.js 20 LTS</option>
-              <option value="22">Node.js 22 LTS</option>
+              {#each nodeVersions as ver}
+                <option value={ver}>Node.js {ver}{["18", "20", "22"].includes(ver) ? " LTS" : ""}</option>
+              {/each}
             </select>
           </label>
         {/if}
@@ -550,7 +553,7 @@
       </div>
       <div class="wiz__actions wiz__actions--center">
         <button class="wiz__btn wiz__btn--primary" onclick={finishSetup}>
-          Open MacEnv
+          Open Unlavarel
           <Icon name="chevron-down" size={14} />
         </button>
       </div>
