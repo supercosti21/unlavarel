@@ -16,8 +16,10 @@
   import SharingPanel from "./lib/components/SharingPanel.svelte";
   import SnapshotsPanel from "./lib/components/SnapshotsPanel.svelte";
   import PasswordDialog from "./lib/components/PasswordDialog.svelte";
+  import Toast from "./lib/components/Toast.svelte";
   import { servicesStore } from "./lib/stores/services.svelte.js";
   import { projectsStore } from "./lib/stores/projects.svelte.js";
+  import { toastStore } from "./lib/stores/toast.svelte.js";
 
   let activePage = $state("dashboard");
   let logLines = $state([]);
@@ -197,6 +199,8 @@
 
     <div class="app__main">
       <div class="app__content">
+        {#key activePage}
+        <div class="page-transition">
         {#if activePage === "dashboard"}
           <div class="dashboard">
             <header class="dashboard__header">
@@ -311,6 +315,8 @@
         {:else if activePage === "settings"}
           <SettingsPage />
         {/if}
+        </div>
+        {/key}
       </div>
 
       <StatusBar services={servicesStore.services} />
@@ -332,6 +338,8 @@
     />
   {/if}
 {/if}
+
+<Toast />
 
 <style>
   .app {
@@ -383,6 +391,10 @@
     flex: 1;
     overflow-y: auto;
     padding: var(--space-6);
+  }
+
+  .page-transition {
+    animation: slide-up 200ms ease forwards;
   }
 
   /* Dashboard */

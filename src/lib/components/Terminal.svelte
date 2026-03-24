@@ -1,25 +1,71 @@
 <script>
+  import Icon from "./Icon.svelte";
+  import { toastStore } from "../stores/toast.svelte.js";
+
   let { lines = [], title = "Logs" } = $props();
   let container;
+  let scrollLocked = $state(false);
+  let showSearch = $state(false);
+  let searchQuery = $state("");
+  let copied = $state(false);
+
+  let filteredLines = $derived(
+    searchQuery
+      ? lines.filter(l => l.toLowerCase().includes(searchQuery.toLowerCase()))
+      : lines
+  );
 
   $effect(() => {
-    if (container && lines.length) {
+    if (container && filteredLines.length && !scrollLocked) {
       container.scrollTop = container.scrollHeight;
     }
   });
+
+  function copyAll() {
+    const text = filteredLines.join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      copied = true;
+      toastStore.success("Copied to clipboard");
+      setTimeout(() => (copied = false), 2000);
+    });
+  }
+
+  function toggleSearch() {
+    showSearch = !showSearch;
+    if (!showSearch) searchQuery = "";
+  }
+
+  function clearTerminal() {
+    // This only clears the view; parent still holds lines
+    if (container) container.textContent = "";
+  }
 </script>
 
 <div class="terminal">
   <div class="terminal__header">
     <h3 class="terminal__title">{title}</h3>
-    <div class="terminal__dots">
-      <span class="terminal__dot terminal__dot--red"></span>
-      <span class="terminal__dot terminal__dot--yellow"></span>
-      <span class="terminal__dot terminal__dot--green"></span>
+    <div class="terminal__toolbar">
+      {#if showSearch}
+        <input
+          class="terminal__search"
+          type="text"
+          placeholder="Filter..."
+          bind:value={searchQuery}
+        />
+      {/if}
+      <button class="btn-icon" onclick={toggleSearch} aria-label="Search logs" class:terminal__btn--active={showSearch}>
+        <Icon name="search" size={14} />
+      </button>
+      <button class="btn-icon" onclick={() => (scrollLocked = !scrollLocked)} aria-label="Toggle scroll lock" class:terminal__btn--active={scrollLocked}>
+        <Icon name={scrollLocked ? "lock" : "chevron-down"} size={14} />
+      </button>
+      <button class="btn-icon" onclick={copyAll} aria-label="Copy all">
+        <Icon name={copied ? "check" : "copy"} size={14} />
+      </button>
     </div>
   </div>
-  <pre class="terminal__output" bind:this={container}>{#if lines.length > 0}{#each lines as line}{line}
-{/each}{:else}<span class="terminal__placeholder">Waiting for output...</span>{/if}</pre>
+  <pre class="terminal__output" bind:this={container}>{#if filteredLines.length > 0}{#each filteredLines as line}{line}
+{/each}{:else}<span class="terminal__placeholder">{searchQuery ? "No matches found" : "Waiting for output..."}</span>{/if}</pre>
 </div>
 
 <style>
@@ -39,6 +85,7 @@
     padding: var(--space-2) var(--space-4);
     background: var(--color-bg-secondary);
     border-bottom: 1px solid var(--color-border);
+    gap: var(--space-2);
   }
 
   .terminal__title {
@@ -49,20 +96,32 @@
     letter-spacing: 0.05em;
   }
 
-  .terminal__dots {
+  .terminal__toolbar {
     display: flex;
+    align-items: center;
     gap: var(--space-1);
   }
 
-  .terminal__dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+  .terminal__btn--active {
+    color: var(--color-accent);
   }
 
-  .terminal__dot--red { background: var(--color-danger); }
-  .terminal__dot--yellow { background: var(--color-warning); }
-  .terminal__dot--green { background: var(--color-success); }
+  .terminal__search {
+    width: 160px;
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+    outline: none;
+    animation: fade-in 150ms ease;
+  }
+
+  .terminal__search:focus {
+    border-color: var(--color-border-focus);
+  }
 
   .terminal__output {
     padding: var(--space-4);

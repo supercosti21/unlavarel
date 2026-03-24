@@ -1,11 +1,17 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import Icon from "./Icon.svelte";
 
   let { onSuccess, onCancel } = $props();
 
   let password = $state("");
   let saving = $state(false);
   let error = $state(null);
+  let inputEl;
+
+  $effect(() => {
+    if (inputEl) inputEl.focus();
+  });
 
   async function submit() {
     if (!password) return;
@@ -26,37 +32,61 @@
     if (e.key === "Enter") submit();
     if (e.key === "Escape") onCancel();
   }
+
+  function handleOverlayKeydown(e) {
+    // Focus trap: keep Tab within dialog
+    if (e.key === "Tab") {
+      const dialog = e.currentTarget.querySelector('.pwd-dialog');
+      const focusable = dialog?.querySelectorAll('input, button:not(:disabled)');
+      if (!focusable || focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="pwd-overlay" onclick={onCancel}>
-  <div class="pwd-dialog" onclick={(e) => e.stopPropagation()}>
+<div class="pwd-overlay" onclick={onCancel} onkeydown={handleOverlayKeydown}>
+  <!-- svelte-ignore a11y_interactive_supports_focus -->
+  <div class="pwd-dialog" role="dialog" aria-modal="true" aria-labelledby="pwd-title" onclick={(e) => e.stopPropagation()}>
     <div class="pwd-icon">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-      </svg>
+      <Icon name="lock" size={24} />
     </div>
-    <h3>Authentication Required</h3>
-    <p>MacEnv needs your password to manage system services. It will be remembered for this session only.</p>
+    <h3 id="pwd-title">Authentication Required</h3>
+    <p>MacEnv needs your system password to start and stop services. Your password is only stored in memory for this session.</p>
 
     <input
       type="password"
       bind:value={password}
-      placeholder="Password"
+      bind:this={inputEl}
+      placeholder="System password"
       onkeydown={handleKeydown}
-      autofocus
     />
 
     {#if error}
-      <span class="pwd-error">{error}</span>
+      <div class="pwd-error">
+        <Icon name="alert-circle" size={12} />
+        <span>{error}</span>
+      </div>
     {/if}
 
     <div class="pwd-actions">
       <button class="pwd-btn pwd-btn--ghost" onclick={onCancel}>Cancel</button>
       <button class="pwd-btn pwd-btn--primary" onclick={submit} disabled={saving || !password}>
-        {saving ? "Verifying..." : "Authenticate"}
+        {#if saving}
+          <span class="spinner spinner--sm"></span>
+          Verifying...
+        {:else}
+          Authenticate
+        {/if}
       </button>
     </div>
   </div>
@@ -71,7 +101,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 200;
+    z-index: var(--z-password);
+    animation: fade-in 150ms ease;
   }
 
   .pwd-dialog {
@@ -86,6 +117,7 @@
     gap: var(--space-4);
     box-shadow: var(--shadow-elevated);
     text-align: center;
+    animation: slide-up 200ms ease;
   }
 
   .pwd-icon {
@@ -118,8 +150,12 @@
   }
 
   .pwd-error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
     font-size: var(--text-xs);
     color: var(--color-danger);
+    animation: fade-in 150ms ease;
   }
 
   .pwd-actions {
@@ -137,6 +173,10 @@
     cursor: pointer;
     border: none;
     transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
   }
 
   .pwd-btn--primary {

@@ -1,13 +1,15 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import Icon from "./Icon.svelte";
+  import { toastStore } from "../stores/toast.svelte.js";
 
   let { projectName = null, projectPath = "", database = null } = $props();
 
   let snapshots = $state([]);
   let loading = $state(true);
   let creating = $state(false);
-  let error = $state(null);
-  let message = $state(null);
+  let confirmDelete = $state(null);
+  let confirmRestore = $state(null);
 
   $effect(() => {
     loadSnapshots();
@@ -27,42 +29,41 @@
   async function createSnapshot() {
     if (!projectName || !projectPath) return;
     creating = true;
-    error = null;
     try {
-      await invoke("create_snapshot", {
-        projectName,
-        projectPath,
-        database,
-      });
-      message = "Snapshot created";
+      await invoke("create_snapshot", { projectName, projectPath, database });
+      toastStore.success("Snapshot created");
       await loadSnapshots();
     } catch (e) {
-      error = String(e);
+      toastStore.error(String(e));
     } finally {
       creating = false;
     }
   }
 
   async function restoreSnap(id) {
-    error = null;
     try {
       const result = await invoke("restore_snapshot", {
         snapshotId: id,
         targetPath: projectPath,
         restoreDb: !!database,
       });
-      message = result;
+      toastStore.success(result);
+      confirmRestore = null;
     } catch (e) {
-      error = String(e);
+      toastStore.error(String(e));
+      confirmRestore = null;
     }
   }
 
   async function deleteSnap(id) {
     try {
       await invoke("delete_snapshot", { snapshotId: id });
+      toastStore.success("Snapshot deleted");
+      confirmDelete = null;
       await loadSnapshots();
     } catch (e) {
-      error = String(e);
+      toastStore.error(String(e));
+      confirmDelete = null;
     }
   }
 
@@ -75,23 +76,27 @@
 
 <div class="snaps">
   <div class="snaps__header">
-    <h3>Snapshots</h3>
+    <h3>
+      <Icon name="download" size={14} />
+      Snapshots
+    </h3>
     {#if projectName}
-      <button class="btn-primary" onclick={createSnapshot} disabled={creating}>
-        {creating ? "Creating..." : "Create Snapshot"}
+      <button class="btn-primary btn-sm" onclick={createSnapshot} disabled={creating}>
+        {#if creating}
+          <span class="spinner spinner--sm"></span>
+        {:else}
+          <Icon name="plus" size={12} />
+        {/if}
+        {creating ? "Creating..." : "Create"}
       </button>
     {/if}
   </div>
 
-  {#if message}
-    <div class="snaps__message badge badge--success">{message}</div>
-  {/if}
-  {#if error}
-    <div class="snaps__message badge badge--danger">{error}</div>
-  {/if}
-
   {#if loading}
-    <p class="snaps__muted">Loading snapshots...</p>
+    <div class="snaps__muted">
+      <span class="spinner spinner--sm"></span>
+      Loading snapshots...
+    </div>
   {:else if snapshots.length === 0}
     <p class="snaps__muted">No snapshots yet.</p>
   {:else}
@@ -102,13 +107,35 @@
             <span class="snaps__item-date">{snap.created_at}</span>
             <span class="snaps__item-size mono">{formatSize(snap.size_bytes)}</span>
             {#if snap.db_dump_path}
-              <span class="badge badge--neutral">DB</span>
+              <span class="badge badge--neutral">
+                <Icon name="database" size={10} />
+                DB
+              </span>
             {/if}
           </div>
-          <div class="snaps__item-actions">
-            <button class="btn-ghost" onclick={() => restoreSnap(snap.id)}>Restore</button>
-            <button class="btn-ghost" onclick={() => deleteSnap(snap.id)}>Delete</button>
-          </div>
+
+          {#if confirmDelete === snap.id}
+            <div class="snaps__confirm">
+              <span>Delete?</span>
+              <button class="btn-danger btn-sm" onclick={() => deleteSnap(snap.id)}>Confirm</button>
+              <button class="btn-ghost btn-sm" onclick={() => (confirmDelete = null)}>Cancel</button>
+            </div>
+          {:else if confirmRestore === snap.id}
+            <div class="snaps__confirm">
+              <span>Restore?</span>
+              <button class="btn-primary btn-sm" onclick={() => restoreSnap(snap.id)}>Confirm</button>
+              <button class="btn-ghost btn-sm" onclick={() => (confirmRestore = null)}>Cancel</button>
+            </div>
+          {:else}
+            <div class="snaps__item-actions">
+              <button class="btn-icon" onclick={() => (confirmRestore = snap.id)} aria-label="Restore snapshot">
+                <Icon name="upload" size={14} />
+              </button>
+              <button class="btn-icon" onclick={() => (confirmDelete = snap.id)} aria-label="Delete snapshot">
+                <Icon name="trash" size={14} />
+              </button>
+            </div>
+          {/if}
         </div>
       {/each}
     </div>
@@ -134,6 +161,15 @@
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .snaps__header button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
   }
 
   .snaps__muted {
@@ -141,11 +177,10 @@
     font-size: var(--text-sm);
     text-align: center;
     padding: var(--space-4);
-  }
-
-  .snaps__message {
-    padding: var(--space-2);
-    font-size: var(--text-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
   }
 
   .snaps__list {
@@ -187,5 +222,14 @@
   .snaps__item-actions {
     display: flex;
     gap: var(--space-1);
+  }
+
+  .snaps__confirm {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    animation: fade-in 150ms ease;
   }
 </style>

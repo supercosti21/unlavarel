@@ -1,5 +1,7 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import Icon from "./Icon.svelte";
+  import { toastStore } from "../stores/toast.svelte.js";
 
   let conn = $state(null);
   let databases = $state([]);
@@ -10,10 +12,12 @@
   let queryText = $state("");
   let queryResult = $state(null);
   let loading = $state(true);
+  let queryRunning = $state(false);
   let error = $state(null);
   let newDbName = $state("");
   let showCreateDb = $state(false);
   let tableData = $state(null);
+  let confirmDrop = $state(null);
 
   $effect(() => {
     init();
@@ -48,6 +52,7 @@
     tableData = null;
     queryResult = null;
     queryText = "";
+    confirmDrop = null;
     try {
       tables = await invoke("db_list_tables", { conn, database: name });
     } catch (e) {
@@ -60,7 +65,6 @@
     selectedTable = name;
     try {
       columns = await invoke("db_describe_table", { conn, database: selectedDb, table: name });
-      // Auto-load first 100 rows
       tableData = await invoke("db_run_query", {
         conn,
         database: selectedDb,
@@ -76,11 +80,12 @@
     error = null;
     try {
       await invoke("db_create_database", { conn, name: newDbName.trim() });
+      toastStore.success(`Database "${newDbName.trim()}" created`);
       newDbName = "";
       showCreateDb = false;
       await loadDatabases();
     } catch (e) {
-      error = String(e);
+      toastStore.error(String(e));
     }
   }
 
@@ -88,14 +93,17 @@
     error = null;
     try {
       await invoke("db_drop_database", { conn, name });
+      toastStore.success(`Database "${name}" dropped`);
       if (selectedDb === name) {
         selectedDb = null;
         tables = [];
         selectedTable = null;
       }
+      confirmDrop = null;
       await loadDatabases();
     } catch (e) {
-      error = String(e);
+      toastStore.error(String(e));
+      confirmDrop = null;
     }
   }
 
@@ -103,14 +111,18 @@
     if (!queryText.trim() || !selectedDb) return;
     error = null;
     queryResult = null;
+    queryRunning = true;
     try {
       queryResult = await invoke("db_run_query", {
         conn,
         database: selectedDb,
         query: queryText.trim(),
       });
+      toastStore.success(queryResult.message || "Query executed");
     } catch (e) {
-      error = String(e);
+      toastStore.error(String(e));
+    } finally {
+      queryRunning = false;
     }
   }
 
@@ -123,13 +135,18 @@
 
 <div class="dbm">
   {#if loading}
-    <div class="dbm__loading">Connecting to database...</div>
+    <div class="dbm__loading">
+      <span class="spinner"></span>
+      <span>Connecting to database...</span>
+    </div>
   {:else}
     <!-- Sidebar: database list -->
     <div class="dbm__sidebar">
       <div class="dbm__sidebar-header">
         <h3>Databases</h3>
-        <button class="btn-ghost dbm__btn-sm" onclick={() => (showCreateDb = !showCreateDb)}>+</button>
+        <button class="btn-icon" onclick={() => (showCreateDb = !showCreateDb)} aria-label="Create database">
+          <Icon name="plus" size={16} />
+        </button>
       </div>
 
       {#if showCreateDb}
@@ -140,7 +157,7 @@
             placeholder="new_database"
             onkeydown={(e) => e.key === "Enter" && createDatabase()}
           />
-          <button class="btn-primary dbm__btn-sm" onclick={createDatabase}>Create</button>
+          <button class="btn-primary btn-sm" onclick={createDatabase}>Create</button>
         </div>
       {/if}
 
@@ -171,11 +188,17 @@
     <!-- Main area -->
     <div class="dbm__main">
       {#if error}
-        <div class="dbm__error">{error}</div>
+        <div class="dbm__error">
+          <Icon name="alert-circle" size={14} />
+          <span>{error}</span>
+        </div>
       {/if}
 
       {#if !selectedDb}
-        <div class="dbm__placeholder">Select a database from the sidebar</div>
+        <div class="dbm__placeholder">
+          <Icon name="database" size={32} />
+          <span>Select a database from the sidebar</span>
+        </div>
       {:else}
         <!-- Table list -->
         <div class="dbm__tables-bar">
@@ -192,24 +215,39 @@
             {/each}
           </div>
           {#if selectedDb}
-            <button class="btn-danger dbm__btn-sm" onclick={() => dropDatabase(selectedDb)}>Drop DB</button>
+            {#if confirmDrop === selectedDb}
+              <div class="dbm__confirm-drop">
+                <span>Drop "{selectedDb}"?</span>
+                <button class="btn-danger btn-sm" onclick={() => dropDatabase(selectedDb)}>Confirm</button>
+                <button class="btn-ghost btn-sm" onclick={() => (confirmDrop = null)}>Cancel</button>
+              </div>
+            {:else}
+              <button class="btn-danger btn-sm" onclick={() => (confirmDrop = selectedDb)}>
+                <Icon name="trash" size={12} />
+                Drop DB
+              </button>
+            {/if}
           {/if}
         </div>
 
         <!-- Table structure -->
         {#if selectedTable && columns.length > 0}
-          <div class="dbm__structure">
-            <h4>Structure: {selectedTable}</h4>
+          <details class="dbm__section" open>
+            <summary class="dbm__section-header">
+              <Icon name="database" size={14} />
+              <span>Structure: {selectedTable}</span>
+              <span class="dbm__section-count">{columns.length} columns</span>
+            </summary>
             <div class="dbm__table-wrap">
               <table class="dbm__table">
                 <thead>
                   <tr>
-                    <th>Column</th>
-                    <th>Type</th>
-                    <th>Null</th>
-                    <th>Key</th>
-                    <th>Default</th>
-                    <th>Extra</th>
+                    <th style="min-width: 160px">Column</th>
+                    <th style="min-width: 120px">Type</th>
+                    <th style="min-width: 60px">Null</th>
+                    <th style="min-width: 60px">Key</th>
+                    <th style="min-width: 100px">Default</th>
+                    <th style="min-width: 80px">Extra</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -226,43 +264,59 @@
                 </tbody>
               </table>
             </div>
-          </div>
+          </details>
         {/if}
 
         <!-- Data preview -->
         {#if tableData && tableData.columns.length > 0}
-          <div class="dbm__data">
-            <h4>Data: {selectedTable} <span class="dbm__data-count">({tableData.message})</span></h4>
+          <details class="dbm__section" open>
+            <summary class="dbm__section-header">
+              <Icon name="grid" size={14} />
+              <span>Data: {selectedTable}</span>
+              <span class="dbm__section-count">{tableData.message}</span>
+            </summary>
             <div class="dbm__table-wrap">
               <table class="dbm__table">
                 <thead>
                   <tr>
+                    <th style="min-width: 40px; color: var(--color-text-muted)">#</th>
                     {#each tableData.columns as col}
                       <th>{col}</th>
                     {/each}
                   </tr>
                 </thead>
                 <tbody>
-                  {#each tableData.rows as row}
+                  {#each tableData.rows as row, i}
                     <tr>
+                      <td style="color: var(--color-text-muted)">{i + 1}</td>
                       {#each row as cell}
-                        <td>{cell}</td>
+                        <td title={cell}>{cell}</td>
                       {/each}
                     </tr>
                   {/each}
                 </tbody>
               </table>
             </div>
-          </div>
+          </details>
         {/if}
 
         <!-- Query runner -->
         <div class="dbm__query">
           <div class="dbm__query-header">
-            <h4>Query</h4>
+            <h4>
+              <Icon name="terminal" size={14} />
+              Query
+            </h4>
             <div class="dbm__query-actions">
               <span class="dbm__query-hint">Ctrl+Enter to run</span>
-              <button class="btn-primary dbm__btn-sm" onclick={runQuery}>Run</button>
+              <button class="btn-primary btn-sm" onclick={runQuery} disabled={queryRunning}>
+                {#if queryRunning}
+                  <span class="spinner spinner--sm"></span>
+                {:else}
+                  <Icon name="play" size={12} />
+                {/if}
+                Run
+              </button>
             </div>
           </div>
           <textarea
@@ -276,26 +330,29 @@
 
         <!-- Query results -->
         {#if queryResult}
-          <div class="dbm__results">
-            <div class="dbm__results-header">
-              <h4>Results</h4>
-              <span class="dbm__results-meta">{queryResult.message}</span>
-            </div>
+          <details class="dbm__section" open>
+            <summary class="dbm__section-header">
+              <Icon name="check" size={14} />
+              <span>Results</span>
+              <span class="dbm__section-count">{queryResult.message}</span>
+            </summary>
             {#if queryResult.columns.length > 0}
               <div class="dbm__table-wrap">
                 <table class="dbm__table">
                   <thead>
                     <tr>
+                      <th style="min-width: 40px; color: var(--color-text-muted)">#</th>
                       {#each queryResult.columns as col}
                         <th>{col}</th>
                       {/each}
                     </tr>
                   </thead>
                   <tbody>
-                    {#each queryResult.rows as row}
+                    {#each queryResult.rows as row, i}
                       <tr>
+                        <td style="color: var(--color-text-muted)">{i + 1}</td>
                         {#each row as cell}
-                          <td>{cell}</td>
+                          <td title={cell}>{cell}</td>
                         {/each}
                       </tr>
                     {/each}
@@ -303,7 +360,7 @@
                 </table>
               </div>
             {/if}
-          </div>
+          </details>
         {/if}
       {/if}
     </div>
@@ -326,8 +383,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: var(--space-3);
     color: var(--color-text-muted);
     padding: var(--space-8);
+    flex-direction: column;
   }
 
   /* Sidebar */
@@ -344,7 +403,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-3) var(--space-3);
+    padding: var(--space-3);
     border-bottom: 1px solid var(--color-border-subtle);
   }
 
@@ -356,15 +415,10 @@
     letter-spacing: 0.05em;
   }
 
-  .dbm__btn-sm {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
-  }
-
   .dbm__create-form {
     display: flex;
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-2);
+    padding: var(--space-2);
     border-bottom: 1px solid var(--color-border-subtle);
   }
 
@@ -442,6 +496,9 @@
   }
 
   .dbm__error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
     background: var(--color-danger-subtle);
     color: var(--color-danger);
@@ -494,39 +551,57 @@
     font-size: 10px;
   }
 
-  /* Structure & Data */
-  .dbm__structure, .dbm__data, .dbm__results {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .dbm__structure h4, .dbm__data h4, .dbm__query h4, .dbm__results h4 {
-    font-size: var(--text-sm);
-    font-weight: var(--font-semibold);
-    color: var(--color-text-secondary);
-  }
-
-  .dbm__data-count, .dbm__results-meta {
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
-    font-weight: var(--font-normal);
-  }
-
-  .dbm__results-header {
+  .dbm__confirm-drop {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-danger);
+    animation: fade-in 150ms ease;
   }
 
+  /* Collapsible sections */
+  .dbm__section {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .dbm__section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-bg-tertiary);
+    cursor: pointer;
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    list-style: none;
+    user-select: none;
+  }
+
+  .dbm__section-header::-webkit-details-marker {
+    display: none;
+  }
+
+  .dbm__section-count {
+    margin-left: auto;
+    font-weight: var(--font-normal);
+    color: var(--color-text-muted);
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  /* Tables */
   .dbm__table-wrap {
     overflow-x: auto;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
   }
 
   .dbm__table {
-    width: 100%;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: var(--text-xs);
   }
@@ -539,13 +614,17 @@
     font-weight: var(--font-semibold);
     border-bottom: 1px solid var(--color-border);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
   .dbm__table td {
     padding: var(--space-1) var(--space-3);
     border-bottom: 1px solid var(--color-border-subtle);
     color: var(--color-text-primary);
-    max-width: 300px;
+    max-width: 250px;
+    min-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -568,10 +647,25 @@
     justify-content: space-between;
   }
 
+  .dbm__query-header h4 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-secondary);
+  }
+
   .dbm__query-actions {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+  }
+
+  .dbm__query-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
   }
 
   .dbm__query-hint {

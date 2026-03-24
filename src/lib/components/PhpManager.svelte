@@ -1,27 +1,40 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import Icon from "./Icon.svelte";
+  import { toastStore } from "../stores/toast.svelte.js";
 
   let versions = $state([]);
   let extensions = $state([]);
   let loadingVersions = $state(true);
   let loadingExtensions = $state(true);
   let switching = $state(false);
-  let message = $state(null);
 
-  $effect(() => {
-    loadAll();
+  const dbExts = ["pdo_mysql", "pdo_pgsql", "pdo_sqlite", "mysqli", "pgsql", "sqlite3"];
+  const cacheExts = ["redis", "memcached", "apcu", "opcache"];
+  const debugExts = ["xdebug", "pcov"];
+
+  let groupedExtensions = $derived.by(() => {
+    const groups = { "Database": [], "Cache": [], "Debug": [], "Other": [] };
+    for (const ext of extensions) {
+      const name = ext.name.toLowerCase();
+      if (dbExts.includes(name)) groups["Database"].push(ext);
+      else if (cacheExts.includes(name)) groups["Cache"].push(ext);
+      else if (debugExts.includes(name)) groups["Debug"].push(ext);
+      else groups["Other"].push(ext);
+    }
+    return Object.entries(groups).filter(([, exts]) => exts.length > 0);
   });
 
-  async function loadAll() {
+  $effect(() => {
     loadVersions();
     loadExtensions();
-  }
+  });
 
   async function loadVersions() {
     loadingVersions = true;
     try {
       versions = await invoke("get_php_versions");
-    } catch (e) {
+    } catch {
       versions = [];
     } finally {
       loadingVersions = false;
@@ -32,7 +45,7 @@
     loadingExtensions = true;
     try {
       extensions = await invoke("get_php_extensions");
-    } catch (e) {
+    } catch {
       extensions = [];
     } finally {
       loadingExtensions = false;
@@ -41,30 +54,28 @@
 
   async function switchVersion(version) {
     switching = true;
-    message = null;
     try {
       const result = await invoke("switch_php_version", { version });
-      message = { type: "success", text: result };
+      toastStore.success(result);
       await loadVersions();
       await loadExtensions();
     } catch (e) {
-      message = { type: "error", text: String(e) };
+      toastStore.error(String(e));
     } finally {
       switching = false;
     }
   }
 
   async function toggleExtension(name, currentEnabled) {
-    message = null;
     try {
       const result = await invoke("toggle_php_extension", {
         name,
         enable: !currentEnabled,
       });
-      message = { type: "success", text: result };
+      toastStore.success(result);
       await loadExtensions();
     } catch (e) {
-      message = { type: "error", text: String(e) };
+      toastStore.error(String(e));
     }
   }
 </script>
@@ -72,17 +83,18 @@
 <div class="php-mgr">
   <header class="php-mgr__header">
     <h2>PHP Manager</h2>
-    {#if message}
-      <span class="badge" class:badge--success={message.type === "success"} class:badge--danger={message.type === "error"}>
-        {message.text}
-      </span>
-    {/if}
   </header>
 
   <section class="php-mgr__section card">
-    <h3>Installed Versions</h3>
+    <h3>
+      <Icon name="code" size={14} />
+      Installed Versions
+    </h3>
     {#if loadingVersions}
-      <p class="php-mgr__muted">Detecting PHP versions...</p>
+      <div class="php-mgr__muted">
+        <span class="spinner spinner--sm"></span>
+        Detecting PHP versions...
+      </div>
     {:else if versions.length === 0}
       <p class="php-mgr__muted">No PHP versions found.</p>
     {:else}
@@ -92,13 +104,20 @@
             <div class="php-mgr__version-info">
               <span class="php-mgr__version-num">PHP {ver.version}</span>
               {#if ver.active}
-                <span class="badge badge--success">Active</span>
+                <span class="badge badge--success">
+                  <Icon name="check" size={10} />
+                  Active
+                </span>
               {/if}
               <span class="php-mgr__version-path mono">{ver.path}</span>
             </div>
             {#if !ver.active}
-              <button class="btn-primary" onclick={() => switchVersion(ver.version)} disabled={switching}>
-                {switching ? "..." : "Activate"}
+              <button class="btn-primary btn-sm" onclick={() => switchVersion(ver.version)} disabled={switching}>
+                {#if switching}
+                  <span class="spinner spinner--sm"></span>
+                {:else}
+                  Activate
+                {/if}
               </button>
             {/if}
           </div>
@@ -108,25 +127,38 @@
   </section>
 
   <section class="php-mgr__section card">
-    <h3>Extensions</h3>
+    <h3>
+      <Icon name="settings" size={14} />
+      Extensions
+    </h3>
     {#if loadingExtensions}
-      <p class="php-mgr__muted">Loading extensions...</p>
-    {:else}
-      <div class="php-mgr__extensions">
-        {#each extensions as ext}
-          <label class="php-mgr__ext">
-            <input
-              type="checkbox"
-              checked={ext.enabled}
-              onchange={() => toggleExtension(ext.name, ext.enabled)}
-            />
-            <span class="php-mgr__ext-name">{ext.name}</span>
-            <span class="badge" class:badge--success={ext.enabled} class:badge--neutral={!ext.enabled}>
-              {ext.enabled ? "On" : "Off"}
-            </span>
-          </label>
-        {/each}
+      <div class="php-mgr__muted">
+        <span class="spinner spinner--sm"></span>
+        Loading extensions...
       </div>
+    {:else if groupedExtensions.length === 0}
+      <p class="php-mgr__muted">No extensions found.</p>
+    {:else}
+      {#each groupedExtensions as [groupName, exts]}
+        <div class="php-mgr__ext-group">
+          <h4 class="php-mgr__ext-group-title">{groupName}</h4>
+          <div class="php-mgr__extensions">
+            {#each exts as ext}
+              <label class="php-mgr__ext">
+                <input
+                  type="checkbox"
+                  checked={ext.enabled}
+                  onchange={() => toggleExtension(ext.name, ext.enabled)}
+                />
+                <span class="php-mgr__ext-name">{ext.name}</span>
+                <span class="badge" class:badge--success={ext.enabled} class:badge--neutral={!ext.enabled}>
+                  {ext.enabled ? "On" : "Off"}
+                </span>
+              </label>
+            {/each}
+          </div>
+        </div>
+      {/each}
     {/if}
   </section>
 </div>
@@ -136,12 +168,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
-  }
-
-  .php-mgr__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
   }
 
   .php-mgr__header h2 {
@@ -156,11 +182,17 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
   }
 
   .php-mgr__muted {
     color: var(--color-text-muted);
     font-size: var(--text-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
   }
 
   .php-mgr__versions {
@@ -179,7 +211,7 @@
   }
 
   .php-mgr__version--active {
-    border-color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
     background: var(--color-success-subtle);
   }
 
@@ -187,20 +219,38 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    min-width: 0;
   }
 
   .php-mgr__version-num {
     font-weight: var(--font-semibold);
+    flex-shrink: 0;
   }
 
   .php-mgr__version-path {
     font-size: var(--text-xs);
     color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .php-mgr__ext-group {
+    margin-bottom: var(--space-3);
+  }
+
+  .php-mgr__ext-group-title {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: var(--space-2);
+    font-weight: var(--font-semibold);
   }
 
   .php-mgr__extensions {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: var(--space-2);
   }
 
