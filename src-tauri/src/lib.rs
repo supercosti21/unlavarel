@@ -26,7 +26,7 @@ use services::{
     get_services, start_service, stop_service, restart_service,
     start_all_services, stop_all_services, get_service_logs, uninstall_package,
 };
-use projects::{get_projects, add_project, remove_project};
+use projects::{get_projects, add_project, remove_project, scan_projects};
 use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete, health_check, pre_scan_system};
 use quickapp::{get_templates, create_app};
 use php::{get_php_versions, switch_php_version, get_php_extensions, toggle_php_extension};
@@ -61,6 +61,7 @@ pub fn run() {
             get_projects,
             add_project,
             remove_project,
+            scan_projects,
             // Setup
             check_setup,
             bootstrap_package_manager,
@@ -108,5 +109,5 @@ pub fn run() {
             clear_session_password,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running MacEnv");
+        .expect("error while running Unlavarel");
 }

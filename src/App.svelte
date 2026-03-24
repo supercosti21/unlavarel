@@ -31,21 +31,63 @@
   let activeLogService = $state(null);
   let unlistenLog = $state(null);
 
+  // Page map for keyboard shortcuts (Ctrl+1..6, Ctrl+7=settings)
+  const pageShortcuts = {
+    "1": "dashboard",
+    "2": "projects",
+    "3": "php",
+    "4": "database",
+    "5": "mail",
+    "6": "logs",
+    "7": "settings",
+  };
+
   $effect(() => {
     checkFirstRun();
+
+    // Global keyboard shortcuts
+    function handleGlobalKey(e) {
+      // Don't trigger when typing in inputs
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+
+      // Ctrl+1..7 — page navigation
+      if ((e.ctrlKey || e.metaKey) && pageShortcuts[e.key]) {
+        e.preventDefault();
+        activePage = pageShortcuts[e.key];
+        return;
+      }
+
+      // Ctrl+R — refresh services
+      if ((e.ctrlKey || e.metaKey) && e.key === "r") {
+        e.preventDefault();
+        servicesStore.loadServices();
+        toastStore.info("Refreshing services...");
+        return;
+      }
+
+      // Ctrl+N — new project
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault();
+        showQuickApp = true;
+        return;
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
   });
 
   // Expose start/stop all for system tray
   if (typeof window !== "undefined") {
-    window.__macenv_start_all = async () => {
+    window.__unlavarel_start_all = async () => {
       try {
-        const result = await invoke("start_all_services");
+        await invoke("start_all_services");
         servicesStore.loadServices();
       } catch {}
     };
-    window.__macenv_stop_all = async () => {
+    window.__unlavarel_stop_all = async () => {
       try {
-        const result = await invoke("stop_all_services");
+        await invoke("stop_all_services");
         servicesStore.loadServices();
       } catch {}
     };
@@ -57,20 +99,31 @@
       const state = await invoke("check_setup");
       showSetup = state.first_run;
       if (!state.first_run) {
-        loadData();
+        await loadData();
         // Apply saved theme
         const settings = await invoke("get_settings");
         document.documentElement.setAttribute("data-theme", settings.theme);
+        // Auto-start services if enabled and password is cached
+        if (settings.auto_start_services) {
+          try {
+            const hasPwd = await invoke("has_session_password");
+            if (hasPwd) {
+              await invoke("start_all_services");
+              await servicesStore.loadServices();
+              toastStore.success("Services auto-started");
+            }
+          } catch {}
+        }
       }
     } catch {
       showSetup = false;
-      loadData();
+      await loadData();
     } finally {
       checkingSetup = false;
     }
   }
 
-  function loadData() {
+  async function loadData() {
     servicesStore.loadServices();
     projectsStore.loadProjects();
   }

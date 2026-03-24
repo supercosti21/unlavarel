@@ -16,13 +16,28 @@ pub struct InstalledService {
 }
 
 /// Scan the system and return only what's actually installed.
+/// Runs all detections in PARALLEL for fast startup.
 #[tauri::command]
 pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
+    // Run all detections concurrently
+    let (php, mariadb, mysql_raw, postgresql, nginx, redis, memcached, dnsmasq, mailpit, composer, node) = tokio::join!(
+        detect("php", "php", &["-v"], "language", parse_php_version),
+        detect("mariadb", "mariadb", &["--version"], "database", parse_mariadb_version),
+        detect("mysql", "mysql", &["--version"], "database", parse_mysql_version),
+        detect("postgresql", "psql", &["--version"], "database", parse_simple_version),
+        detect("nginx", "nginx", &["-v"], "webserver", parse_nginx_version),
+        detect("redis", "redis-server", &["--version"], "cache", parse_redis_version),
+        detect("memcached", "memcached", &["-h"], "cache", parse_memcached_version),
+        detect("dnsmasq", "dnsmasq", &["--version"], "dns", parse_simple_version),
+        detect("mailpit", "mailpit", &["version"], "mail", parse_simple_version),
+        detect("composer", "composer", &["--version"], "tool", parse_simple_version),
+        detect("node", "node", &["--version"], "tool", parse_simple_version),
+    );
+
     let mut found = Vec::new();
 
     // PHP
-    if let Some(svc) = detect("php", "php", &["-v"], "language", parse_php_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = php {
         svc.display_name = format!("PHP {}", svc.version);
         svc.systemd_unit = Some("php-fpm".into());
         svc.brew_service = Some("php".into());
@@ -30,34 +45,29 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
         found.push(svc);
     }
 
-    // Database: check what's ACTUALLY installed — only one
-    if let Some(svc) = detect("mariadb", "mariadb", &["--version"], "database", parse_mariadb_version).await {
-        let mut svc = svc;
+    // Database: MariaDB takes priority (provides mysql binary too)
+    if let Some(mut svc) = mariadb {
         svc.display_name = format!("MariaDB {}", svc.version);
         svc.systemd_unit = Some("mariadb".into());
         svc.brew_service = Some("mariadb".into());
         svc.has_service = true;
         found.push(svc);
-    } else if let Some(svc) = detect("mysql", "mysql", &["--version"], "database", parse_mysql_version).await {
-        // Only check mysql if mariadb is NOT found (mariadb provides mysql binary too)
-        // Distinguish real MySQL from MariaDB's mysql binary
-        let output = Command::new("mysql").arg("--version").output().await;
-        if let Ok(o) = output {
-            let text = String::from_utf8_lossy(&o.stdout);
-            if !text.contains("MariaDB") {
-                let mut svc = svc;
-                svc.display_name = format!("MySQL {}", svc.version);
-                svc.systemd_unit = Some("mysqld".into());
-                svc.brew_service = Some("mysql".into());
-                svc.has_service = true;
-                found.push(svc);
-            }
+    } else if let Some(mut svc) = mysql_raw {
+        // Check it's real MySQL, not MariaDB's binary
+        let is_mariadb = svc.version.contains("MariaDB") || {
+            let o = Command::new("mysql").arg("--version").output().await;
+            o.map(|o| String::from_utf8_lossy(&o.stdout).contains("MariaDB")).unwrap_or(false)
+        };
+        if !is_mariadb {
+            svc.display_name = format!("MySQL {}", svc.version);
+            svc.systemd_unit = Some("mysqld".into());
+            svc.brew_service = Some("mysql".into());
+            svc.has_service = true;
+            found.push(svc);
         }
     }
 
-    // PostgreSQL
-    if let Some(svc) = detect("postgresql", "psql", &["--version"], "database", parse_simple_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = postgresql {
         svc.display_name = format!("PostgreSQL {}", svc.version);
         svc.systemd_unit = Some("postgresql".into());
         svc.brew_service = Some("postgresql".into());
@@ -65,9 +75,7 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
         found.push(svc);
     }
 
-    // Nginx
-    if let Some(svc) = detect("nginx", "nginx", &["-v"], "webserver", parse_nginx_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = nginx {
         svc.display_name = format!("Nginx {}", svc.version);
         svc.systemd_unit = Some("nginx".into());
         svc.brew_service = Some("nginx".into());
@@ -75,13 +83,9 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
         found.push(svc);
     }
 
-    // Redis / Valkey (Arch uses valkey which provides redis-server)
-    if let Some(svc) = detect("redis", "redis-server", &["--version"], "cache", parse_redis_version).await {
-        let mut svc = svc;
-        let is_valkey = svc.version.contains("Valkey") || {
-            let o = Command::new("redis-server").arg("--version").output().await;
-            o.map(|o| String::from_utf8_lossy(&o.stdout).contains("Valkey")).unwrap_or(false)
-        };
+    // Redis / Valkey
+    if let Some(mut svc) = redis {
+        let is_valkey = svc.version.contains("Valkey") || svc.binary.contains("valkey");
         svc.display_name = if is_valkey {
             format!("Valkey (Redis) {}", svc.version)
         } else {
@@ -93,9 +97,7 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
         found.push(svc);
     }
 
-    // Memcached
-    if let Some(svc) = detect("memcached", "memcached", &["-h"], "cache", parse_memcached_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = memcached {
         svc.display_name = format!("Memcached {}", svc.version);
         svc.systemd_unit = Some("memcached".into());
         svc.brew_service = Some("memcached".into());
@@ -103,9 +105,7 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
         found.push(svc);
     }
 
-    // dnsmasq
-    if let Some(svc) = detect("dnsmasq", "dnsmasq", &["--version"], "dns", parse_simple_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = dnsmasq {
         svc.display_name = format!("dnsmasq {}", svc.version);
         svc.systemd_unit = Some("dnsmasq".into());
         svc.brew_service = Some("dnsmasq".into());
@@ -113,9 +113,7 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
         found.push(svc);
     }
 
-    // Mailpit
-    if let Some(svc) = detect("mailpit", "mailpit", &["version"], "mail", parse_simple_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = mailpit {
         svc.display_name = format!("Mailpit {}", svc.version);
         svc.systemd_unit = Some("mailpit".into());
         svc.brew_service = Some("mailpit".into());
@@ -123,26 +121,20 @@ pub async fn discover_services() -> Result<Vec<InstalledService>, String> {
         found.push(svc);
     }
 
-    // Composer (no service, just a tool)
-    if let Some(svc) = detect("composer", "composer", &["--version"], "tool", parse_simple_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = composer {
         svc.display_name = format!("Composer {}", svc.version);
         svc.has_service = false;
         found.push(svc);
     }
 
-    // Node.js (no service, just a tool)
-    if let Some(svc) = detect("node", "node", &["--version"], "tool", parse_simple_version).await {
-        let mut svc = svc;
+    if let Some(mut svc) = node {
         svc.version = svc.version.trim_start_matches('v').to_string();
         svc.display_name = format!("Node.js {}", svc.version);
         svc.has_service = false;
         found.push(svc);
     }
 
-    // Save to cache
     save_cache(&found);
-
     Ok(found)
 }
 

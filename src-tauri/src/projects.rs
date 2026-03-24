@@ -17,7 +17,7 @@ pub struct Project {
 fn projects_file() -> PathBuf {
     let data_dir = dirs_next::data_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("macenv");
+        .join("unlavarel");
     std::fs::create_dir_all(&data_dir).ok();
     data_dir.join("projects.json")
 }
@@ -121,6 +121,64 @@ pub async fn remove_project(name: String) -> Result<(), String> {
     save_projects_to_disk(&projects)?;
 
     Ok(())
+}
+
+/// Scan a directory for PHP/Laravel projects (looks for artisan, composer.json, index.php)
+#[tauri::command]
+pub async fn scan_projects(directory: String) -> Result<Vec<ScannedProject>, String> {
+    let dir = PathBuf::from(&directory);
+    if !dir.is_dir() {
+        return Err(format!("'{}' is not a directory", directory));
+    }
+
+    let mut found = Vec::new();
+    let existing = load_projects_from_disk();
+    let existing_paths: std::collections::HashSet<String> = existing.iter().map(|p| p.path.clone()).collect();
+
+    let mut entries = tokio::fs::read_dir(&dir).await.map_err(|e| e.to_string())?;
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let path = entry.path();
+        if !path.is_dir() { continue; }
+
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        if name.starts_with('.') { continue; }
+
+        let path_str = path.to_string_lossy().to_string();
+        let already_added = existing_paths.contains(&path_str);
+
+        // Detect project type
+        let project_type = if path.join("artisan").exists() {
+            "laravel"
+        } else if path.join("symfony.lock").exists() {
+            "symfony"
+        } else if path.join("wp-config.php").exists() || path.join("wp-config-sample.php").exists() {
+            "wordpress"
+        } else if path.join("composer.json").exists() {
+            "php"
+        } else if path.join("package.json").exists() {
+            "node"
+        } else {
+            continue; // Not a recognized project
+        };
+
+        found.push(ScannedProject {
+            name,
+            path: path_str,
+            project_type: project_type.to_string(),
+            already_added,
+        });
+    }
+
+    found.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(found)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScannedProject {
+    pub name: String,
+    pub path: String,
+    pub project_type: String,
+    pub already_added: bool,
 }
 
 /// Create a MySQL database with the given name.
