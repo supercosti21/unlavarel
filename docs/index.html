@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unlavarel — Local Dev Environment Manager</title>
+  <meta name="description" content="A beautiful, cross-platform local development environment manager for Laravel developers. Built with Tauri, Svelte, and Rust.">
+  <meta name="theme-color" content="#7c5bf0">
+  <meta property="og:title" content="Unlavarel — Local Dev Environment Manager">
+  <meta property="og:description" content="Manage PHP, MySQL, Nginx, Redis and more with a beautiful native UI. macOS, Linux, Windows.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%237c5bf0'/><text x='50' y='68' text-anchor='middle' font-size='50' font-weight='bold' fill='white'>U</text></svg>">
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #08080c;
+      --bg-card: #111118;
+      --bg-card-hover: #16161f;
+      --border: #1e1e2a;
+      --text: #e4e4ed;
+      --text-dim: #8888a0;
+      --accent: #7c5bf0;
+      --accent-light: #a78bfa;
+      --accent-glow: rgba(124, 91, 240, 0.15);
+      --green: #34d399;
+      --blue: #60a5fa;
+      --orange: #fb923c;
+      --pink: #f472b6;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Ambient Background ── */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+    }
+    .ambient::before {
+      content: '';
+      position: absolute;
+      width: 800px;
+      height: 800px;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: radial-gradient(circle, rgba(124, 91, 240, 0.12) 0%, transparent 70%);
+      animation: pulse 8s ease-in-out infinite;
+    }
+    .ambient::after {
+      content: '';
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      bottom: 20%;
+      right: -100px;
+      background: radial-gradient(circle, rgba(52, 211, 153, 0.06) 0%, transparent 70%);
+      animation: pulse 10s ease-in-out infinite reverse;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+      50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    section {
+      padding: 100px 0;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 0;
+      background: rgba(8, 8, 12, 0.8);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.3s;
+    }
+    nav.scrolled { border-bottom-color: var(--border); }
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo svg { width: 32px; height: 32px; }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-github {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-dim) !important;
+    }
+    .nav-github svg { width: 18px; height: 18px; fill: currentColor; }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 180px 0 120px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(124, 91, 240, 0.2);
+      color: var(--accent-light);
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 28px;
+    }
+    .hero-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 2s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .hero h1 {
+      font-size: clamp(2.8rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent-light) 0%, var(--pink) 50%, var(--orange) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.2rem;
+      color: var(--text-dim);
+      max-width: 560px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 0 24px rgba(124, 91, 240, 0.3);
+    }
+    .btn-primary:hover {
+      background: #6d4ce0;
+      box-shadow: 0 0 36px rgba(124, 91, 240, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: #2a2a3a;
+      transform: translateY(-1px);
+    }
+    .btn svg { width: 18px; height: 18px; }
+
+    /* ── Platform badges ── */
+    .platforms {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin-top: 48px;
+    }
+    .platform {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .platform svg { width: 20px; height: 20px; fill: currentColor; opacity: 0.6; }
+
+    /* ── App Preview ── */
+    .preview {
+      margin-top: 80px;
+      position: relative;
+    }
+    .preview-window {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 20px 60px rgba(0,0,0,0.5),
+        0 0 120px rgba(124, 91, 240, 0.08);
+    }
+    .preview-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 18px;
+      background: #0d0d14;
+      border-bottom: 1px solid var(--border);
+    }
+    .preview-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .preview-dot.red { background: #f85149; }
+    .preview-dot.yellow { background: #d29922; }
+    .preview-dot.green { background: #3fb950; }
+    .preview-titlebar span {
+      margin-left: auto;
+      margin-right: auto;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .preview-body {
+      display: flex;
+      min-height: 420px;
+    }
+    .preview-sidebar {
+      width: 200px;
+      padding: 20px 0;
+      border-right: 1px solid var(--border);
+      background: #0a0a11;
+      flex-shrink: 0;
+    }
+    .preview-sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .preview-sidebar-item:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.02);
+    }
+    .preview-sidebar-item.active {
+      color: var(--text);
+      background: rgba(124, 91, 240, 0.08);
+      border-right: 2px solid var(--accent);
+    }
+    .preview-sidebar-item svg { width: 16px; height: 16px; fill: currentColor; opacity: 0.6; }
+    .preview-sidebar-item.active svg { opacity: 1; fill: var(--accent-light); }
+    .preview-main {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .preview-tab {
+      position: absolute;
+      inset: 0;
+      padding: 24px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      overflow-y: auto;
+    }
+    .preview-tab.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+      position: relative;
+    }
+    .preview-content {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      align-content: start;
+    }
+    .preview-service {
+      background: #0d0d14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+    }
+    .preview-service-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .preview-service-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .preview-service-badge {
+      font-size: 0.7rem;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-weight: 600;
+    }
+    .preview-service-badge.running {
+      background: rgba(52, 211, 153, 0.1);
+      color: var(--green);
+    }
+    .preview-service-badge.stopped {
+      background: rgba(248, 81, 73, 0.1);
+      color: #f85149;
+    }
+    .preview-service-meta {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+    .preview-service-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .preview-btn {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preview-btn:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .preview-btn.green { border-color: rgba(52,211,153,0.3); color: var(--green); }
+    .preview-btn.red { border-color: rgba(248,81,73,0.3); color: #f85149; }
+
+    /* ── Projects tab ── */
+    .preview-projects { display: flex; flex-direction: column; gap: 8px; }
+    .preview-project-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: #0d0d14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .preview-project-info { display: flex; flex-direction: column; gap: 2px; }
+    .preview-project-name { font-weight: 600; font-size: 0.9rem; }
+    .preview-project-url { font-size: 0.75rem; color: var(--accent-light); }
+    .preview-project-badges { display: flex; gap: 6px; align-items: center; }
+    .preview-ssl-badge {
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      background: rgba(52,211,153,0.1);
+      color: var(--green);
+    }
+    .preview-framework-badge {
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      background: rgba(124,91,240,0.1);
+      color: var(--accent-light);
+    }
+
+    /* ── PHP tab ── */
+    .preview-php { display: flex; flex-direction: column; gap: 20px; }
+    .preview-php-header { display: flex; align-items: center; justify-content: space-between; }
+    .preview-php-title { font-weight: 700; font-size: 1rem; }
+    .preview-version-grid { display: flex; gap: 8px; }
+    .preview-version-pill {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: #0d0d14;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preview-version-pill.active {
+      background: rgba(124,91,240,0.12);
+      border-color: var(--accent);
+      color: var(--accent-light);
+    }
+    .preview-version-pill:hover:not(.active) { border-color: #2a2a3a; color: var(--text); }
+    .preview-ext-group { display: flex; flex-direction: column; gap: 8px; }
+    .preview-ext-label { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+    .preview-ext-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .preview-ext {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 6px; font-size: 0.8rem;
+      background: #0d0d14; border: 1px solid var(--border);
+    }
+    .preview-ext-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .preview-ext-dot.on { background: var(--green); }
+    .preview-ext-dot.off { background: #555; }
+
+    /* ── Database tab ── */
+    .preview-db { display: flex; flex-direction: column; gap: 14px; }
+    .preview-db-toolbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; background: #0d0d14; border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .preview-db-select {
+      padding: 5px 10px; border-radius: 6px; font-size: 0.8rem;
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    }
+    .preview-db-query {
+      flex: 1; padding: 5px 10px; border-radius: 6px; font-size: 0.8rem;
+      background: var(--bg); border: 1px solid var(--border); color: var(--text-dim);
+      font-family: 'SF Mono', 'Cascadia Code', monospace;
+    }
+    .preview-db-run {
+      padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;
+      background: var(--accent); color: white; border: none; cursor: pointer;
+    }
+    .preview-table {
+      width: 100%; border-collapse: collapse; font-size: 0.8rem;
+    }
+    .preview-table th {
+      text-align: left; padding: 10px 14px; font-weight: 600; font-size: 0.75rem;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border); background: #0a0a11;
+    }
+    .preview-table td {
+      padding: 10px 14px; border-bottom: 1px solid rgba(30,30,42,0.5);
+      color: var(--text-dim);
+    }
+    .preview-table tr:hover td { background: rgba(255,255,255,0.01); }
+    .preview-table .pk { color: var(--accent-light); font-weight: 600; }
+
+    /* ── Mail tab ── */
+    .preview-mail { display: flex; flex-direction: column; gap: 0; }
+    .preview-mail-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px; background: #0d0d14; border: 1px solid var(--border);
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    }
+    .preview-mail-title { font-weight: 600; font-size: 0.9rem; }
+    .preview-mail-count { font-size: 0.75rem; color: var(--text-dim); }
+    .preview-mail-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 12px 18px; border: 1px solid var(--border); border-top: none;
+      cursor: pointer; transition: background 0.1s;
+    }
+    .preview-mail-row:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+    .preview-mail-row:hover { background: rgba(255,255,255,0.015); }
+    .preview-mail-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .preview-mail-dot.read { background: transparent; }
+    .preview-mail-body { flex: 1; min-width: 0; }
+    .preview-mail-subject { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .preview-mail-from { font-size: 0.75rem; color: var(--text-dim); }
+    .preview-mail-time { font-size: 0.7rem; color: var(--text-dim); flex-shrink: 0; }
+
+    /* ── Settings tab ── */
+    .preview-settings { display: flex; flex-direction: column; gap: 16px; }
+    .preview-settings-group {
+      padding: 18px; background: #0d0d14; border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    .preview-settings-label { font-weight: 600; font-size: 0.9rem; margin-bottom: 12px; }
+    .preview-settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; border-bottom: 1px solid rgba(30,30,42,0.4);
+    }
+    .preview-settings-row:last-child { border-bottom: none; }
+    .preview-settings-key { font-size: 0.85rem; color: var(--text-dim); }
+    .preview-settings-val { font-size: 0.85rem; font-weight: 500; }
+    .preview-toggle {
+      width: 36px; height: 20px; border-radius: 10px; position: relative;
+      background: #333; transition: background 0.2s;
+    }
+    .preview-toggle.on { background: var(--green); }
+    .preview-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%; background: white;
+      transition: transform 0.2s;
+    }
+    .preview-toggle.on::after { transform: translateX(16px); }
+    .preview-health-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    .preview-health-icon { font-size: 0.8rem; }
+    .preview-health-name { font-size: 0.85rem; flex: 1; }
+    .preview-health-status { font-size: 0.75rem; font-weight: 600; }
+    .preview-health-status.ok { color: var(--green); }
+    .preview-health-status.missing { color: #f85149; }
+
+    /* ── Features Grid ── */
+    .section-label {
+      display: inline-block;
+      color: var(--accent-light);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+    .section-desc {
+      color: var(--text-dim);
+      font-size: 1.05rem;
+      max-width: 540px;
+      line-height: 1.7;
+    }
+    .features-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+    .features-header .section-desc {
+      margin: 0 auto;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      transition: all 0.25s;
+    }
+    .feature-card:hover {
+      border-color: #2a2a3a;
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 1.3rem;
+    }
+    .feature-icon.purple { background: rgba(124, 91, 240, 0.12); color: var(--accent-light); }
+    .feature-icon.green { background: rgba(52, 211, 153, 0.12); color: var(--green); }
+    .feature-icon.blue { background: rgba(96, 165, 250, 0.12); color: var(--blue); }
+    .feature-icon.orange { background: rgba(251, 146, 60, 0.12); color: var(--orange); }
+    .feature-icon.pink { background: rgba(244, 114, 182, 0.12); color: var(--pink); }
+    .feature-icon.teal { background: rgba(45, 212, 191, 0.12); color: #2dd4bf; }
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* ── Highlight Feature (wide card) ── */
+    .feature-card.wide {
+      grid-column: span 2;
+      display: flex;
+      gap: 40px;
+      align-items: center;
+    }
+    .feature-card.wide .feature-text { flex: 1; }
+    .feature-card.wide .feature-visual {
+      flex: 1;
+      background: #0a0a11;
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      border: 1px solid var(--border);
+      font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.8;
+      color: var(--text-dim);
+    }
+    .feature-visual .cmd { color: var(--green); }
+    .feature-visual .flag { color: var(--accent-light); }
+    .feature-visual .comment { color: #555; }
+
+    /* ── Tech Stack ── */
+    .stack {
+      text-align: center;
+    }
+    .stack-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 64px;
+    }
+    .stack-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 28px;
+      text-align: center;
+      transition: all 0.25s;
+    }
+    .stack-card:hover {
+      border-color: #2a2a3a;
+      transform: translateY(-2px);
+    }
+    .stack-card svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 18px;
+    }
+    .stack-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .stack-card p {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    /* ── Services showcase ── */
+    .services-showcase {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 48px;
+    }
+    .service-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+    .service-pill:hover {
+      border-color: #2a2a3a;
+      background: var(--bg-card-hover);
+    }
+    .service-pill .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* ── CTA ── */
+    .cta {
+      text-align: center;
+      padding: 120px 0;
+    }
+    .cta-box {
+      background: linear-gradient(135deg, rgba(124, 91, 240, 0.08) 0%, rgba(244, 114, 182, 0.05) 100%);
+      border: 1px solid rgba(124, 91, 240, 0.15);
+      border-radius: 24px;
+      padding: 80px 40px;
+    }
+    .cta h2 {
+      font-size: clamp(2rem, 4vw, 2.5rem);
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+    .cta p {
+      color: var(--text-dim);
+      font-size: 1.1rem;
+      margin-bottom: 36px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 40px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+    footer p {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+    footer a {
+      color: var(--accent-light);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .feature-card.wide { grid-column: span 1; flex-direction: column; }
+      .stack-grid { grid-template-columns: 1fr; }
+      .preview-sidebar { display: none; }
+      .preview-content { grid-template-columns: repeat(2, 1fr); }
+      .preview-body { min-height: 360px; }
+      .preview-table th, .preview-table td { padding: 8px 10px; font-size: 0.7rem; }
+      .nav-links .hide-mobile { display: none; }
+      .platforms { flex-direction: column; align-items: center; gap: 12px; }
+      section { padding: 60px 0; }
+      .hero { padding: 140px 0 80px; }
+    }
+    @media (max-width: 480px) {
+      .preview-content { grid-template-columns: 1fr; }
+    }
+
+    /* ── Animations ── */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient"></div>
+
+  <!-- Nav -->
+  <nav id="nav">
+    <div class="container">
+      <a href="#" class="nav-logo">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="#7c5bf0"/>
+          <path d="M9 21V11h2v8h4V11h2v10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Unlavarel
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features" class="hide-mobile">Features</a></li>
+        <li><a href="#stack" class="hide-mobile">Stack</a></li>
+        <li>
+          <a href="https://github.com/supercosti21/unlavarel" class="nav-github" target="_blank" rel="noopener">
+            <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        Open Source &middot; MIT License
+      </div>
+      <h1>
+        Your local dev stack,<br>
+        <span class="gradient">beautifully managed.</span>
+      </h1>
+      <p>
+        A native, cross-platform development environment manager for Laravel developers.
+        Control PHP, MySQL, Nginx, Redis and more — all from one elegant UI.
+      </p>
+      <div class="hero-actions">
+        <a href="https://github.com/supercosti21/unlavarel/releases" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </a>
+        <a href="https://github.com/supercosti21/unlavarel" class="btn btn-secondary" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="18" height="18"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View Source
+        </a>
+      </div>
+
+      <div class="platforms">
+        <div class="platform">
+          <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          macOS
+        </div>
+        <div class="platform">
+          <svg viewBox="0 0 24 24"><path d="M20.581 19.049c-.55-.446-.336-1.431-.907-1.917.553-3.365-.997-6.331-2.845-8.232-1.551-1.595-1.051-3.147-1.051-4.49 0-2.146-.881-4.41-3.55-4.41-.845 0-1.751.377-2.477.94C8.41 2.052 7.65 3.412 7.65 5.39c0 1.247-.334 2.468-1.079 3.38C4.747 11.007 3.5 14.1 4.01 17.467c-.543.396-.3 1.322-.84 1.768-.396.327-.259.81-.077 1.122.363.62 1.298.982 2.07.552.234-.13.486-.32.662-.605.498-.803.35-1.87.572-2.812.172-.731.376-1.205.723-1.677l.257-.34c.093-.12.186-.236.282-.349.39-.459.864-.808 1.412-1.032.508-.206 1.07-.31 1.678-.31s1.17.104 1.678.31c.548.224 1.022.573 1.412 1.032.096.113.189.229.282.349l.257.34c.347.472.551.946.723 1.677.222.942.074 2.009.572 2.812.176.285.428.475.662.605.772.43 1.707.068 2.07-.552.182-.312.319-.795-.077-1.122zM12 7.996c-.952 0-1.722-.766-1.722-1.71 0-.944.77-1.71 1.722-1.71.951 0 1.722.766 1.722 1.71 0 .944-.77 1.71-1.722 1.71z"/></svg>
+          Linux
+        </div>
+        <div class="platform">
+          <svg viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+          Windows
+        </div>
+      </div>
+
+      <!-- App Preview -->
+      <div class="preview fade-in">
+        <div class="preview-window">
+          <div class="preview-titlebar">
+            <div class="preview-dot red"></div>
+            <div class="preview-dot yellow"></div>
+            <div class="preview-dot green"></div>
+            <span>Unlavarel</span>
+            <div style="width: 52px;"></div>
+          </div>
+          <div class="preview-body">
+            <div class="preview-sidebar">
+              <div class="preview-sidebar-item active" data-tab="dashboard">
+                <svg viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Dashboard
+              </div>
+              <div class="preview-sidebar-item" data-tab="projects">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 2v12h16V6H4zm2 2h4v2H6V8zm0 4h4v2H6v-2zm6-4h6v2h-6V8zm0 4h6v2h-6v-2z"/></svg>
+                Projects
+              </div>
+              <div class="preview-sidebar-item" data-tab="php">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v-2h-2v2zm0-4h2V7h-2v6z"/></svg>
+                PHP
+              </div>
+              <div class="preview-sidebar-item" data-tab="database">
+                <svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                Database
+              </div>
+              <div class="preview-sidebar-item" data-tab="mail">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10z"/></svg>
+                Mail
+              </div>
+              <div class="preview-sidebar-item" data-tab="settings">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.28.46.43.98.43 1.51V12"/></svg>
+                Settings
+              </div>
+            </div>
+            <div class="preview-main">
+              <!-- Dashboard -->
+              <div class="preview-tab active" data-panel="dashboard">
+                <div class="preview-content">
+                  <div class="preview-service">
+                    <div class="preview-service-header">
+                      <span class="preview-service-name">Nginx</span>
+                      <span class="preview-service-badge running">Running</span>
+                    </div>
+                    <div class="preview-service-meta">Port 80 &middot; PID 1284</div>
+                    <div class="preview-service-actions">
+                      <button class="preview-btn red">Stop</button>
+                      <button class="preview-btn">Restart</button>
+                    </div>
+                  </div>
+                  <div class="preview-service">
+                    <div class="preview-service-header">
+                      <span class="preview-service-name">PHP 8.3</span>
+                      <span class="preview-service-badge running">Running</span>
+                    </div>
+                    <div class="preview-service-meta">FPM &middot; PID 2051</div>
+                    <div class="preview-service-actions">
+                      <button class="preview-btn red">Stop</button>
+                      <button class="preview-btn">Restart</button>
+                    </div>
+                  </div>
+                  <div class="preview-service">
+                    <div class="preview-service-header">
+                      <span class="preview-service-name">MySQL 8.4</span>
+                      <span class="preview-service-badge running">Running</span>
+                    </div>
+                    <div class="preview-service-meta">Port 3306 &middot; PID 981</div>
+                    <div class="preview-service-actions">
+                      <button class="preview-btn red">Stop</button>
+                      <button class="preview-btn">Restart</button>
+                    </div>
+                  </div>
+                  <div class="preview-service">
+                    <div class="preview-service-header">
+                      <span class="preview-service-name">Redis</span>
+                      <span class="preview-service-badge running">Running</span>
+                    </div>
+                    <div class="preview-service-meta">Port 6379 &middot; PID 1102</div>
+                    <div class="preview-service-actions">
+                      <button class="preview-btn red">Stop</button>
+                      <button class="preview-btn">Restart</button>
+                    </div>
+                  </div>
+                  <div class="preview-service">
+                    <div class="preview-service-header">
+                      <span class="preview-service-name">PostgreSQL</span>
+                      <span class="preview-service-badge stopped">Stopped</span>
+                    </div>
+                    <div class="preview-service-meta">Port 5432</div>
+                    <div class="preview-service-actions">
+                      <button class="preview-btn green">Start</button>
+                    </div>
+                  </div>
+                  <div class="preview-service">
+                    <div class="preview-service-header">
+                      <span class="preview-service-name">Mailpit</span>
+                      <span class="preview-service-badge running">Running</span>
+                    </div>
+                    <div class="preview-service-meta">Port 8025 &middot; PID 3312</div>
+                    <div class="preview-service-actions">
+                      <button class="preview-btn red">Stop</button>
+                      <button class="preview-btn">Restart</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Projects -->
+              <div class="preview-tab" data-panel="projects">
+                <div class="preview-projects">
+                  <div class="preview-project-row">
+                    <div class="preview-project-info">
+                      <span class="preview-project-name">blog</span>
+                      <span class="preview-project-url">blog.test</span>
+                    </div>
+                    <div class="preview-project-badges">
+                      <span class="preview-framework-badge">Laravel 11</span>
+                      <span class="preview-ssl-badge">SSL</span>
+                    </div>
+                  </div>
+                  <div class="preview-project-row">
+                    <div class="preview-project-info">
+                      <span class="preview-project-name">admin-panel</span>
+                      <span class="preview-project-url">admin-panel.test</span>
+                    </div>
+                    <div class="preview-project-badges">
+                      <span class="preview-framework-badge">Filament</span>
+                      <span class="preview-ssl-badge">SSL</span>
+                    </div>
+                  </div>
+                  <div class="preview-project-row">
+                    <div class="preview-project-info">
+                      <span class="preview-project-name">shop</span>
+                      <span class="preview-project-url">shop.test</span>
+                    </div>
+                    <div class="preview-project-badges">
+                      <span class="preview-framework-badge">WordPress</span>
+                    </div>
+                  </div>
+                  <div class="preview-project-row">
+                    <div class="preview-project-info">
+                      <span class="preview-project-name">api-service</span>
+                      <span class="preview-project-url">api-service.test</span>
+                    </div>
+                    <div class="preview-project-badges">
+                      <span class="preview-framework-badge">Symfony</span>
+                      <span class="preview-ssl-badge">SSL</span>
+                    </div>
+                  </div>
+                  <div class="preview-project-row">
+                    <div class="preview-project-info">
+                      <span class="preview-project-name">landing-page</span>
+                      <span class="preview-project-url">landing-page.test</span>
+                    </div>
+                    <div class="preview-project-badges">
+                      <span class="preview-framework-badge">Blank PHP</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PHP -->
+              <div class="preview-tab" data-panel="php">
+                <div class="preview-php">
+                  <div>
+                    <div class="preview-php-header">
+                      <span class="preview-php-title">Active Version</span>
+                    </div>
+                    <div class="preview-version-grid" style="margin-top: 12px;">
+                      <div class="preview-version-pill">8.1</div>
+                      <div class="preview-version-pill">8.2</div>
+                      <div class="preview-version-pill active">8.3</div>
+                      <div class="preview-version-pill">8.4</div>
+                    </div>
+                  </div>
+                  <div class="preview-ext-group">
+                    <span class="preview-ext-label">Database</span>
+                    <div class="preview-ext-list">
+                      <div class="preview-ext"><span class="preview-ext-dot on"></span> pdo_mysql</div>
+                      <div class="preview-ext"><span class="preview-ext-dot on"></span> pdo_pgsql</div>
+                      <div class="preview-ext"><span class="preview-ext-dot on"></span> mysqli</div>
+                      <div class="preview-ext"><span class="preview-ext-dot off"></span> pdo_sqlite</div>
+                    </div>
+                  </div>
+                  <div class="preview-ext-group">
+                    <span class="preview-ext-label">Cache</span>
+                    <div class="preview-ext-list">
+                      <div class="preview-ext"><span class="preview-ext-dot on"></span> redis</div>
+                      <div class="preview-ext"><span class="preview-ext-dot on"></span> memcached</div>
+                      <div class="preview-ext"><span class="preview-ext-dot off"></span> apcu</div>
+                    </div>
+                  </div>
+                  <div class="preview-ext-group">
+                    <span class="preview-ext-label">Debug</span>
+                    <div class="preview-ext-list">
+                      <div class="preview-ext"><span class="preview-ext-dot on"></span> xdebug</div>
+                      <div class="preview-ext"><span class="preview-ext-dot off"></span> pcov</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Database -->
+              <div class="preview-tab" data-panel="database">
+                <div class="preview-db">
+                  <div class="preview-db-toolbar">
+                    <div class="preview-db-select">blog_db</div>
+                    <div class="preview-db-query">SELECT * FROM users LIMIT 5;</div>
+                    <button class="preview-db-run">Run</button>
+                  </div>
+                  <table class="preview-table">
+                    <thead>
+                      <tr>
+                        <th>id</th>
+                        <th>name</th>
+                        <th>email</th>
+                        <th>role</th>
+                        <th>created_at</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td class="pk">1</td><td>Alice Johnson</td><td>alice@example.com</td><td>admin</td><td>2026-01-15</td></tr>
+                      <tr><td class="pk">2</td><td>Bob Smith</td><td>bob@example.com</td><td>editor</td><td>2026-02-03</td></tr>
+                      <tr><td class="pk">3</td><td>Carol Lee</td><td>carol@example.com</td><td>author</td><td>2026-02-18</td></tr>
+                      <tr><td class="pk">4</td><td>Dan Wilson</td><td>dan@example.com</td><td>author</td><td>2026-03-01</td></tr>
+                      <tr><td class="pk">5</td><td>Eve Chen</td><td>eve@example.com</td><td>subscriber</td><td>2026-03-12</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Mail -->
+              <div class="preview-tab" data-panel="mail">
+                <div class="preview-mail">
+                  <div class="preview-mail-header">
+                    <span class="preview-mail-title">Mailpit Inbox</span>
+                    <span class="preview-mail-count">4 messages</span>
+                  </div>
+                  <div class="preview-mail-row">
+                    <span class="preview-mail-dot"></span>
+                    <div class="preview-mail-body">
+                      <div class="preview-mail-subject">Welcome to Blog! Verify your email</div>
+                      <div class="preview-mail-from">noreply@blog.test</div>
+                    </div>
+                    <span class="preview-mail-time">2m ago</span>
+                  </div>
+                  <div class="preview-mail-row">
+                    <span class="preview-mail-dot"></span>
+                    <div class="preview-mail-body">
+                      <div class="preview-mail-subject">Password Reset Request</div>
+                      <div class="preview-mail-from">noreply@admin-panel.test</div>
+                    </div>
+                    <span class="preview-mail-time">15m ago</span>
+                  </div>
+                  <div class="preview-mail-row">
+                    <span class="preview-mail-dot read"></span>
+                    <div class="preview-mail-body">
+                      <div class="preview-mail-subject">Order #1042 Confirmation</div>
+                      <div class="preview-mail-from">shop@shop.test</div>
+                    </div>
+                    <span class="preview-mail-time">1h ago</span>
+                  </div>
+                  <div class="preview-mail-row">
+                    <span class="preview-mail-dot read"></span>
+                    <div class="preview-mail-body">
+                      <div class="preview-mail-subject">New comment on "Getting Started with Laravel"</div>
+                      <div class="preview-mail-from">noreply@blog.test</div>
+                    </div>
+                    <span class="preview-mail-time">3h ago</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Settings -->
+              <div class="preview-tab" data-panel="settings">
+                <div class="preview-settings">
+                  <div class="preview-settings-group">
+                    <div class="preview-settings-label">General</div>
+                    <div class="preview-settings-row">
+                      <span class="preview-settings-key">Project root</span>
+                      <span class="preview-settings-val" style="color: var(--text-dim); font-family: 'SF Mono', monospace; font-size: 0.8rem;">~/Sites</span>
+                    </div>
+                    <div class="preview-settings-row">
+                      <span class="preview-settings-key">Auto-start services</span>
+                      <div class="preview-toggle on"></div>
+                    </div>
+                    <div class="preview-settings-row">
+                      <span class="preview-settings-key">Start minimized</span>
+                      <div class="preview-toggle"></div>
+                    </div>
+                  </div>
+                  <div class="preview-settings-group">
+                    <div class="preview-settings-label">Health Check</div>
+                    <div class="preview-health-row">
+                      <span class="preview-health-icon" style="color: var(--green);">&#10003;</span>
+                      <span class="preview-health-name">Homebrew</span>
+                      <span class="preview-health-status ok">Installed</span>
+                    </div>
+                    <div class="preview-health-row">
+                      <span class="preview-health-icon" style="color: var(--green);">&#10003;</span>
+                      <span class="preview-health-name">Composer</span>
+                      <span class="preview-health-status ok">v2.7.1</span>
+                    </div>
+                    <div class="preview-health-row">
+                      <span class="preview-health-icon" style="color: var(--green);">&#10003;</span>
+                      <span class="preview-health-name">mkcert</span>
+                      <span class="preview-health-status ok">Installed</span>
+                    </div>
+                    <div class="preview-health-row">
+                      <span class="preview-health-icon" style="color: #f85149;">&#10007;</span>
+                      <span class="preview-health-name">Cloudflared</span>
+                      <span class="preview-health-status missing">Not found</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="container">
+      <div class="features-header">
+        <span class="section-label">Features</span>
+        <h2 class="section-title">Everything you need, nothing you don't.</h2>
+        <p class="section-desc">
+          Manage your entire local development stack from a single, native app.
+          No Docker overhead, no YAML configs, no bloat.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Wide card -->
+        <div class="feature-card wide fade-in">
+          <div class="feature-text">
+            <div class="feature-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            </div>
+            <h3>Service Control</h3>
+            <p>Start, stop, and restart PHP-FPM, MySQL, Nginx, Redis, PostgreSQL and more with one click. Real-time status with PID monitoring.</p>
+          </div>
+          <div class="feature-visual">
+            <span class="comment">// Dashboard → Services</span><br>
+            <span class="cmd">nginx</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="flag">● running</span> &nbsp; :80<br>
+            <span class="cmd">php-fpm 8.3</span> <span class="flag">● running</span> &nbsp; pid 2051<br>
+            <span class="cmd">mysql 8.4</span> &nbsp; <span class="flag">● running</span> &nbsp; :3306<br>
+            <span class="cmd">redis</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="flag">● running</span> &nbsp; :6379<br>
+            <span class="cmd">dnsmasq</span> &nbsp;&nbsp;&nbsp;&nbsp; <span style="color:#f85149">○ stopped</span>
+          </div>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          </div>
+          <h3>Database Manager</h3>
+          <p>Browse databases and tables, run SQL queries, inspect schemas. Supports MySQL, MariaDB, and PostgreSQL.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <h3>PHP Version Switching</h3>
+          <p>Switch between PHP 8.1–8.4 instantly. Toggle extensions by category — Database, Cache, Debug — with a clean UI.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon orange">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+          </div>
+          <h3>Quick App Creation</h3>
+          <p>Scaffold Laravel, Filament, Symfony, or WordPress projects in seconds. Auto-configures virtual host, database, and SSL.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon pink">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <h3>Mail Testing</h3>
+          <p>Built-in Mailpit integration. Capture all outgoing emails locally and inspect them in a clean embedded inbox.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon teal">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <h3>Site Sharing</h3>
+          <p>Share local sites publicly via Cloudflare Tunnels or ngrok. One-click public URL generation for testing and collaboration.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0022 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <h3>Project Snapshots</h3>
+          <p>Backup files and databases with one click. Compressed archives with timestamps. Restore any snapshot instantly.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>SSL & DNS</h3>
+          <p>Automatic HTTPS via mkcert. Local .test domains resolved by dnsmasq — no more editing /etc/hosts.</p>
+        </div>
+
+        <div class="feature-card fade-in">
+          <div class="feature-icon blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <h3>Native & Lightweight</h3>
+          <p>Built with Tauri + Rust. No Docker, no Electron bloat. Tiny binary, instant startup, minimal resource usage.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Supported Services -->
+  <section style="padding-top: 0;">
+    <div class="container" style="text-align: center;">
+      <span class="section-label">Supported Services</span>
+      <h2 class="section-title">All the tools you rely on.</h2>
+      <div class="services-showcase">
+        <div class="service-pill"><span class="dot" style="background: var(--green);"></span> Nginx</div>
+        <div class="service-pill"><span class="dot" style="background: var(--accent);"></span> PHP 8.1–8.4</div>
+        <div class="service-pill"><span class="dot" style="background: var(--blue);"></span> MySQL</div>
+        <div class="service-pill"><span class="dot" style="background: var(--blue);"></span> MariaDB</div>
+        <div class="service-pill"><span class="dot" style="background: var(--blue);"></span> PostgreSQL 15–17</div>
+        <div class="service-pill"><span class="dot" style="background: #f85149;"></span> Redis</div>
+        <div class="service-pill"><span class="dot" style="background: var(--orange);"></span> Memcached</div>
+        <div class="service-pill"><span class="dot" style="background: var(--green);"></span> Node.js</div>
+        <div class="service-pill"><span class="dot" style="background: var(--pink);"></span> Mailpit</div>
+        <div class="service-pill"><span class="dot" style="background: var(--orange);"></span> Composer</div>
+        <div class="service-pill"><span class="dot" style="background: #2dd4bf;"></span> dnsmasq</div>
+        <div class="service-pill"><span class="dot" style="background: var(--accent);"></span> Cloudflared</div>
+        <div class="service-pill"><span class="dot" style="background: var(--text-dim);"></span> ngrok</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <section id="stack" class="stack">
+    <div class="container">
+      <span class="section-label">Built With</span>
+      <h2 class="section-title">Modern stack, native performance.</h2>
+      <p class="section-desc" style="margin: 0 auto;">
+        No runtime overhead. No container layers. Just fast, native code talking directly to your system.
+      </p>
+
+      <div class="stack-grid">
+        <div class="stack-card fade-in">
+          <svg viewBox="0 0 48 48" fill="none">
+            <rect width="48" height="48" rx="12" fill="rgba(251, 146, 60, 0.1)"/>
+            <path d="M24 10c-2.2 0-3.6 1.1-4.2 3.3.84-1.1 1.82-1.51 2.94-1.23.64.16 1.1.63 1.6 1.14.82.83 1.77 1.79 3.84 1.79 2.2 0 3.6-1.1 4.2-3.3-.84 1.1-1.82 1.51-2.94 1.23-.64-.16-1.1-.63-1.6-1.14-.82-.83-1.77-1.79-3.84-1.79zM19.8 17c-2.2 0-3.6 1.1-4.2 3.3.84-1.1 1.82-1.51 2.94-1.23.64.16 1.1.63 1.6 1.14.82.83 1.77 1.79 3.84 1.79 2.2 0 3.6-1.1 4.2-3.3-.84 1.1-1.82 1.51-2.94 1.23-.64-.16-1.1-.63-1.6-1.14-.82-.83-1.77-1.79-3.84-1.79z" fill="#fb923c" transform="translate(0, 6) scale(1.1)"/>
+          </svg>
+          <h3>Tauri v2</h3>
+          <p>Tiny bundles, native webview, cross-platform</p>
+        </div>
+        <div class="stack-card fade-in">
+          <svg viewBox="0 0 48 48" fill="none">
+            <rect width="48" height="48" rx="12" fill="rgba(248, 81, 73, 0.1)"/>
+            <path d="M24 12l8 14H16l8-14z" fill="#f85149" opacity="0.8"/>
+            <path d="M24 20l5 8H19l5-8z" fill="#f85149"/>
+          </svg>
+          <h3>Svelte 5</h3>
+          <p>Runes, zero runtime, reactive by default</p>
+        </div>
+        <div class="stack-card fade-in">
+          <svg viewBox="0 0 48 48" fill="none">
+            <rect width="48" height="48" rx="12" fill="rgba(96, 165, 250, 0.1)"/>
+            <text x="24" y="32" text-anchor="middle" font-size="20" font-weight="800" fill="#60a5fa">Rs</text>
+          </svg>
+          <h3>Rust</h3>
+          <p>Memory safe, blazing fast, no GC</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <div class="container">
+      <div class="cta-box fade-in">
+        <h2>Ready to simplify your dev setup?</h2>
+        <p>Get started in minutes. Open source, free forever.</p>
+        <div class="hero-actions">
+          <a href="https://github.com/supercosti21/unlavarel/releases" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Latest Release
+          </a>
+          <a href="https://github.com/supercosti21/unlavarel" class="btn btn-secondary" target="_blank" rel="noopener">
+            Star on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>
+        Built with love by <a href="https://github.com/supercosti21" target="_blank" rel="noopener">supercosti21</a>.
+        Licensed under <a href="https://github.com/supercosti21/unlavarel/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll-aware nav
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    // Intersection Observer for fade-in
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Preview tab switching
+    const sidebarItems = document.querySelectorAll('.preview-sidebar-item[data-tab]');
+    const tabPanels = document.querySelectorAll('.preview-tab[data-panel]');
+
+    sidebarItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const tab = item.dataset.tab;
+
+        sidebarItems.forEach(si => si.classList.remove('active'));
+        item.classList.add('active');
+
+        tabPanels.forEach(panel => {
+          panel.classList.remove('active');
+          if (panel.dataset.panel === tab) {
+            panel.classList.add('active');
+          }
+        });
+      });
+    });
+
+    // PHP version switching (interactive)
+    document.querySelectorAll('.preview-version-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.preview-version-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+      });
+    });
+
+    // Toggle switches (interactive)
+    document.querySelectorAll('.preview-toggle').forEach(toggle => {
+      toggle.addEventListener('click', () => toggle.classList.toggle('on'));
+    });
+
+    // Extension dots (interactive)
+    document.querySelectorAll('.preview-ext').forEach(ext => {
+      ext.addEventListener('click', () => {
+        const dot = ext.querySelector('.preview-ext-dot');
+        dot.classList.toggle('on');
+        dot.classList.toggle('off');
+      });
+      ext.style.cursor = 'pointer';
+    });
+
+    // Service start/stop toggle (interactive)
+    document.querySelectorAll('.preview-service').forEach(card => {
+      card.querySelectorAll('.preview-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const badge = card.querySelector('.preview-service-badge');
+          const actions = card.querySelector('.preview-service-actions');
+          if (btn.classList.contains('green')) {
+            badge.className = 'preview-service-badge running';
+            badge.textContent = 'Running';
+            actions.innerHTML = '<button class="preview-btn red">Stop</button><button class="preview-btn">Restart</button>';
+            rebindServiceBtns(card);
+          } else if (btn.classList.contains('red')) {
+            badge.className = 'preview-service-badge stopped';
+            badge.textContent = 'Stopped';
+            actions.innerHTML = '<button class="preview-btn green">Start</button>';
+            rebindServiceBtns(card);
+          }
+        });
+      });
+    });
+
+    function rebindServiceBtns(card) {
+      card.querySelectorAll('.preview-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const badge = card.querySelector('.preview-service-badge');
+          const actions = card.querySelector('.preview-service-actions');
+          if (btn.classList.contains('green')) {
+            badge.className = 'preview-service-badge running';
+            badge.textContent = 'Running';
+            actions.innerHTML = '<button class="preview-btn red">Stop</button><button class="preview-btn">Restart</button>';
+            rebindServiceBtns(card);
+          } else if (btn.classList.contains('red')) {
+            badge.className = 'preview-service-badge stopped';
+            badge.textContent = 'Stopped';
+            actions.innerHTML = '<button class="preview-btn green">Start</button>';
+            rebindServiceBtns(card);
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>
