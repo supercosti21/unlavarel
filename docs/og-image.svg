@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08080c"/>
+      <stop offset="100%" stop-color="#0f0f18"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c5bf0" stop-opacity="0.15"/>
+      <stop offset="50%" stop-color="#f472b6" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#fb923c" stop-opacity="0.03"/>
+    </linearGradient>
+    <linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c5bf0"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="text-grad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="50%" stop-color="#f472b6"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+    <filter id="logo-glow">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="soft-glow">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Ambient glow -->
+  <ellipse cx="600" cy="260" rx="400" ry="250" fill="url(#glow)" filter="url(#soft-glow)"/>
+
+  <!-- Subtle grid dots -->
+  <g fill="#1e1e2a" opacity="0.4">
+    <circle cx="100" cy="100" r="1"/><circle cx="160" cy="100" r="1"/><circle cx="220" cy="100" r="1"/><circle cx="280" cy="100" r="1"/><circle cx="340" cy="100" r="1"/><circle cx="400" cy="100" r="1"/><circle cx="460" cy="100" r="1"/><circle cx="520" cy="100" r="1"/><circle cx="580" cy="100" r="1"/><circle cx="640" cy="100" r="1"/><circle cx="700" cy="100" r="1"/><circle cx="760" cy="100" r="1"/><circle cx="820" cy="100" r="1"/><circle cx="880" cy="100" r="1"/><circle cx="940" cy="100" r="1"/><circle cx="1000" cy="100" r="1"/><circle cx="1060" cy="100" r="1"/>
+    <circle cx="100" cy="160" r="1"/><circle cx="160" cy="160" r="1"/><circle cx="220" cy="160" r="1"/><circle cx="280" cy="160" r="1"/><circle cx="340" cy="160" r="1"/><circle cx="400" cy="160" r="1"/><circle cx="460" cy="160" r="1"/><circle cx="520" cy="160" r="1"/><circle cx="580" cy="160" r="1"/><circle cx="640" cy="160" r="1"/><circle cx="700" cy="160" r="1"/><circle cx="760" cy="160" r="1"/><circle cx="820" cy="160" r="1"/><circle cx="880" cy="160" r="1"/><circle cx="940" cy="160" r="1"/><circle cx="1000" cy="160" r="1"/><circle cx="1060" cy="160" r="1"/>
+    <circle cx="100" cy="470" r="1"/><circle cx="160" cy="470" r="1"/><circle cx="220" cy="470" r="1"/><circle cx="280" cy="470" r="1"/><circle cx="340" cy="470" r="1"/><circle cx="400" cy="470" r="1"/><circle cx="460" cy="470" r="1"/><circle cx="520" cy="470" r="1"/><circle cx="580" cy="470" r="1"/><circle cx="640" cy="470" r="1"/><circle cx="700" cy="470" r="1"/><circle cx="760" cy="470" r="1"/><circle cx="820" cy="470" r="1"/><circle cx="880" cy="470" r="1"/><circle cx="940" cy="470" r="1"/><circle cx="1000" cy="470" r="1"/><circle cx="1060" cy="470" r="1"/>
+    <circle cx="100" cy="530" r="1"/><circle cx="160" cy="530" r="1"/><circle cx="220" cy="530" r="1"/><circle cx="280" cy="530" r="1"/><circle cx="340" cy="530" r="1"/><circle cx="400" cy="530" r="1"/><circle cx="460" cy="530" r="1"/><circle cx="520" cy="530" r="1"/><circle cx="580" cy="530" r="1"/><circle cx="640" cy="530" r="1"/><circle cx="700" cy="530" r="1"/><circle cx="760" cy="530" r="1"/><circle cx="820" cy="530" r="1"/><circle cx="880" cy="530" r="1"/><circle cx="940" cy="530" r="1"/><circle cx="1000" cy="530" r="1"/><circle cx="1060" cy="530" r="1"/>
+  </g>
+
+  <!-- Logo mark -->
+  <g transform="translate(600, 220)" filter="url(#logo-glow)">
+    <!-- Outer rounded square -->
+    <rect x="-52" y="-52" width="104" height="104" rx="24" fill="url(#logo-grad)" opacity="0.12"/>
+    <!-- Inner rounded square -->
+    <rect x="-42" y="-42" width="84" height="84" rx="20" fill="url(#logo-grad)"/>
+    <!-- U letterform -->
+    <path d="M-16 -20 L-16 8 C-16 18 -9 24 0 24 C9 24 16 18 16 8 L16 -20"
+          stroke="white" stroke-width="6" stroke-linecap="round" fill="none"/>
+    <!-- Decorative dot -->
+    <circle cx="0" cy="-26" r="3" fill="white" opacity="0.8"/>
+  </g>
+
+  <!-- App name -->
+  <text x="600" y="340" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif" font-size="52" font-weight="800" letter-spacing="-1" fill="#e4e4ed">Unlavarel</text>
+
+  <!-- Tagline -->
+  <text x="600" y="385" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif" font-size="20" font-weight="500" fill="#8888a0">Your local dev stack, beautifully managed.</text>
+
+  <!-- Tech pills -->
+  <g transform="translate(600, 440)">
+    <rect x="-228" y="-16" width="100" height="32" rx="16" fill="#111118" stroke="#1e1e2a" stroke-width="1"/>
+    <text x="-178" y="6" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="13" font-weight="600" fill="#fb923c">Tauri v2</text>
+
+    <rect x="-78" y="-16" width="96" height="32" rx="16" fill="#111118" stroke="#1e1e2a" stroke-width="1"/>
+    <text x="-30" y="6" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="13" font-weight="600" fill="#f85149">Svelte 5</text>
+
+    <rect x="68" y="-16" width="72" height="32" rx="16" fill="#111118" stroke="#1e1e2a" stroke-width="1"/>
+    <text x="104" y="6" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="13" font-weight="600" fill="#60a5fa">Rust</text>
+
+    <rect x="190" y="-16" width="42" height="32" rx="16" fill="#111118" stroke="#1e1e2a" stroke-width="1"/>
+    <text x="211" y="6" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="13" font-weight="600" fill="#34d399">MIT</text>
+  </g>
+
+  <!-- Platform icons row -->
+  <g transform="translate(600, 500)" fill="#555" font-family="-apple-system, system-ui, sans-serif" font-size="12" font-weight="500">
+    <text x="-80" y="5" text-anchor="middle" fill="#666">macOS</text>
+    <circle cx="-16" cy="1" r="1.5" fill="#333"/>
+    <text x="16" y="5" text-anchor="middle" fill="#666">Linux</text>
+    <circle cx="64" cy="1" r="1.5" fill="#333"/>
+    <text x="104" y="5" text-anchor="middle" fill="#666">Windows</text>
+  </g>
+</svg>
