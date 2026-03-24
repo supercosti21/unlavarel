@@ -51,6 +51,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Build + create release on tags, just build on push to main
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -62,3 +63,18 @@ jobs:
           releaseBody: "Cross-platform local development environment manager."
           releaseDraft: true
           prerelease: false
+
+      # Always upload artifacts (even without tag) so you can download them
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macenv-${{ matrix.platform }}
+          path: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/universal-apple-darwin/release/bundle/**/*.dmg
+          retention-days: 14
