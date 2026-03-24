@@ -20,7 +20,7 @@
 <!-- Invisible drag region across the top of the window -->
 <div class="titlebar-drag" data-tauri-drag-region></div>
 
-<!-- macOS-style traffic lights, placed absolutely top-left -->
+<!-- macOS-style traffic lights — works on all platforms (decorations: false) -->
 <div
   class="traffic-lights"
   role="group"
@@ -102,11 +102,6 @@
 
   .tl--maximize {
     background: #28c840;
-  }
-
-  /* Dim when window is unfocused */
-  .traffic-lights:not(:hover) .tl {
-    /* Default visible state */
   }
 
   .tl svg {

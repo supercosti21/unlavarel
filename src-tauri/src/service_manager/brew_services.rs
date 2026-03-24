@@ -143,21 +143,53 @@ impl ServiceManager for BrewServices {
     }
 
     async fn status(&self, service: &str) -> Result<ServiceInfo> {
-        let output = self.run_brew_services(&["info", service]).await?;
+        // Try JSON output first (modern brew >= 4.x)
+        let json_output = Command::new(&self.brew_path)
+            .args(["services", "info", service, "--json"])
+            .output()
+            .await;
+
         let version = self.detect_version(service).await;
 
-        // Parse brew services info output
-        let status = if output.contains("running") {
+        if let Ok(ref out) = json_output {
+            if out.status.success() {
+                let json_str = String::from_utf8_lossy(&out.stdout);
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                    // Handle both array and object responses
+                    let entry = if json.is_array() { json.get(0) } else { Some(&json) };
+                    if let Some(entry) = entry {
+                        let running = entry.get("running").and_then(|v| v.as_bool()).unwrap_or(false);
+                        let pid = entry.get("pid").and_then(|v| v.as_u64()).map(|p| p as u32);
+                        return Ok(ServiceInfo {
+                            name: service.to_string(),
+                            status: if running { ServiceStatus::Running } else { ServiceStatus::Stopped },
+                            version,
+                            pid,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Fallback: plain text output
+        let output = self.run_brew_services(&["info", service]).await.unwrap_or_default();
+        let status = if output.to_lowercase().contains("running") || output.to_lowercase().contains("started") {
             ServiceStatus::Running
         } else {
             ServiceStatus::Stopped
         };
 
+        // Try to extract PID from text (e.g. "PID: 1234" or "pid 1234")
+        let pid = output.split_whitespace()
+            .zip(output.split_whitespace().skip(1))
+            .find(|(a, _)| a.to_lowercase().contains("pid"))
+            .and_then(|(_, b)| b.trim_matches(|c: char| !c.is_ascii_digit()).parse().ok());
+
         Ok(ServiceInfo {
             name: service.to_string(),
             status,
             version,
-            pid: None,
+            pid,
         })
     }
 

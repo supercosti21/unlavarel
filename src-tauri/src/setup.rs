@@ -220,21 +220,26 @@ async fn install_stack_linux(selection: StackSelection) -> Result<Vec<String>, S
     }
 
     // Build a single bash script that does everything
-    let mut script = String::from("#!/bin/bash\nset -e\n\n");
+    // NOTE: no `set -e` — we want to continue even if one package fails
+    let mut script = String::from("#!/bin/bash\nFAILED=0\n\n");
 
-    // Package manager install
+    // Package manager install — one package at a time so failures don't block others
     if !packages.is_empty() {
         if is_arch {
-            script.push_str(&format!(
-                "pacman -S --noconfirm --needed {}\n",
-                packages.join(" ")
-            ));
+            for pkg in &packages {
+                script.push_str(&format!(
+                    "pacman -S --noconfirm --needed {} || {{ echo \"FAIL:{}\"; FAILED=1; }}\n",
+                    pkg, pkg
+                ));
+            }
         } else {
             script.push_str("export DEBIAN_FRONTEND=noninteractive\n");
-            script.push_str(&format!(
-                "apt-get install -y {}\n",
-                packages.join(" ")
-            ));
+            for pkg in &packages {
+                script.push_str(&format!(
+                    "apt-get install -y {} || {{ echo \"FAIL:{}\"; FAILED=1; }}\n",
+                    pkg, pkg
+                ));
+            }
         }
     }
 
@@ -259,29 +264,26 @@ async fn install_stack_linux(selection: StackSelection) -> Result<Vec<String>, S
         .map_err(|e| format!("Failed to run installer: {}", e))?;
 
     let mut results = Vec::new();
-    let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    if output.status.success() {
-        for pkg in &packages {
+    // Parse output — look for FAIL: markers per package
+    let failed_pkgs: Vec<&str> = stdout
+        .lines()
+        .filter_map(|l| l.strip_prefix("FAIL:"))
+        .collect();
+
+    for pkg in &packages {
+        if failed_pkgs.iter().any(|f| f == pkg) {
+            results.push(format!("{} failed", pkg));
+        } else {
             results.push(format!("{} installed", pkg));
         }
-        for (name, _) in &aur_packages {
+    }
+    for (name, _) in &aur_packages {
+        if failed_pkgs.iter().any(|f| f == name) {
+            results.push(format!("{} failed", name));
+        } else {
             results.push(format!("{} installed", name));
-        }
-    } else {
-        results.push(format!("Script output: {}", stdout.trim()));
-        if !stderr.trim().is_empty() {
-            results.push(format!("Errors: {}", stderr.trim()));
-        }
-        // Check what actually got installed
-        for pkg in &packages {
-            let base = pkg.split('-').next().unwrap_or(pkg);
-            if check_binary(base).await {
-                results.push(format!("{} installed", pkg));
-            } else {
-                results.push(format!("{} failed", pkg));
-            }
         }
     }
 

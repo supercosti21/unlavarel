@@ -23,30 +23,59 @@ pub fn nginx_sites_dir() -> PathBuf {
 }
 
 /// Get the PHP-FPM socket path for the current platform.
+/// Searches dynamically for the socket file instead of hardcoding paths.
 fn php_fpm_socket() -> String {
+    if cfg!(target_os = "windows") {
+        return "127.0.0.1:9000".to_string();
+    }
+
+    // Build a list of candidate paths to check (platform-specific)
+    let mut candidates: Vec<String> = Vec::new();
+
     if cfg!(target_os = "macos") {
         let prefix = if cfg!(target_arch = "aarch64") {
             "/opt/homebrew"
         } else {
             "/usr/local"
         };
-        format!("unix:{}/var/run/php-fpm.sock", prefix)
-    } else if cfg!(target_os = "windows") {
-        "127.0.0.1:9000".to_string()
-    } else {
-        // Linux: check common socket paths
-        let paths = [
-            "/run/php-fpm/php-fpm.sock",
-            "/run/php/php-fpm.sock",
-            "/var/run/php-fpm/php-fpm.sock",
-        ];
-        for path in &paths {
-            if PathBuf::from(path).exists() {
-                return format!("unix:{}", path);
-            }
+        // Homebrew versioned PHP sockets (most common)
+        for ver in &["8.5", "8.4", "8.3", "8.2", "8.1", "8.0"] {
+            candidates.push(format!("{}/var/run/php{}-fpm.sock", prefix, ver));
         }
-        "unix:/run/php-fpm/php-fpm.sock".to_string()
+        // Generic Homebrew socket
+        candidates.push(format!("{}/var/run/php-fpm.sock", prefix));
+        // Homebrew Cellar sockets
+        for ver in &["8.5", "8.4", "8.3", "8.2", "8.1", "8.0"] {
+            candidates.push(format!("{}/Cellar/php@{}/*/var/run/php-fpm.sock", prefix, ver));
+        }
     }
+
+    // Linux common paths (Arch, Debian/Ubuntu, Fedora)
+    if cfg!(target_os = "linux") {
+        // Versioned sockets (Debian/Ubuntu)
+        for ver in &["8.5", "8.4", "8.3", "8.2", "8.1", "8.0"] {
+            candidates.push(format!("/run/php/php{}-fpm.sock", ver));
+            candidates.push(format!("/var/run/php/php{}-fpm.sock", ver));
+        }
+        // Generic sockets (Arch, Fedora)
+        candidates.extend_from_slice(&[
+            "/run/php-fpm/php-fpm.sock".into(),
+            "/run/php/php-fpm.sock".into(),
+            "/var/run/php-fpm/php-fpm.sock".into(),
+            "/var/run/php-fpm.sock".into(),
+            "/tmp/php-fpm.sock".into(),
+        ]);
+    }
+
+    // Return first existing socket
+    for path in &candidates {
+        if PathBuf::from(path).exists() {
+            return format!("unix:{}", path);
+        }
+    }
+
+    // Fallback: TCP (always works if PHP-FPM listens on port)
+    "127.0.0.1:9000".to_string()
 }
 
 /// Generate an Nginx server block for a Laravel/PHP site.
