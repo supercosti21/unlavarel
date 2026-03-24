@@ -9,7 +9,35 @@
   <meta property="og:title" content="Unlavarel — Local Dev Environment Manager">
   <meta property="og:description" content="Manage PHP, MySQL, Nginx, Redis and more with a beautiful native UI. macOS, Linux, Windows.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://supercosti21.github.io/unlavarel/">
+  <meta property="og:site_name" content="Unlavarel">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Unlavarel — Local Dev Environment Manager">
+  <meta name="twitter:description" content="A native, cross-platform dev environment manager for Laravel. PHP, MySQL, Nginx, Redis — one beautiful UI.">
+  <meta name="keywords" content="laravel, local development, dev environment, tauri, svelte, rust, php, mysql, nginx, redis, macos, linux, windows, laragon alternative, valet alternative, herd alternative, open source">
+  <meta name="author" content="supercosti21">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://supercosti21.github.io/unlavarel/">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%237c5bf0'/><text x='50' y='68' text-anchor='middle' font-size='50' font-weight='bold' fill='white'>U</text></svg>">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Unlavarel",
+    "description": "A cross-platform local development environment manager for Laravel developers. Manage PHP, MySQL, Nginx, Redis and more from a native UI.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS, Linux, Windows",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "license": "https://opensource.org/licenses/MIT",
+    "url": "https://supercosti21.github.io/unlavarel/",
+    "downloadUrl": "https://github.com/supercosti21/unlavarel/releases",
+    "softwareVersion": "0.1.0",
+    "author": { "@type": "Person", "name": "supercosti21", "url": "https://github.com/supercosti21" },
+    "codeRepository": "https://github.com/supercosti21/unlavarel",
+    "programmingLanguage": ["Rust", "Svelte", "JavaScript"]
+  }
+  </script>
   <style>
     /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -673,6 +701,11 @@
       border-color: #2a2a3a;
       transform: translateY(-2px);
     }
+    a.stack-card {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
     .stack-card svg {
       width: 48px;
       height: 48px;
@@ -1312,15 +1345,15 @@
       </p>
 
       <div class="stack-grid">
-        <div class="stack-card fade-in">
+        <a href="https://v2.tauri.app" target="_blank" rel="noopener" class="stack-card fade-in">
           <svg viewBox="0 0 48 48" fill="none">
             <rect width="48" height="48" rx="12" fill="rgba(251, 146, 60, 0.1)"/>
             <path d="M24 10c-2.2 0-3.6 1.1-4.2 3.3.84-1.1 1.82-1.51 2.94-1.23.64.16 1.1.63 1.6 1.14.82.83 1.77 1.79 3.84 1.79 2.2 0 3.6-1.1 4.2-3.3-.84 1.1-1.82 1.51-2.94 1.23-.64-.16-1.1-.63-1.6-1.14-.82-.83-1.77-1.79-3.84-1.79zM19.8 17c-2.2 0-3.6 1.1-4.2 3.3.84-1.1 1.82-1.51 2.94-1.23.64.16 1.1.63 1.6 1.14.82.83 1.77 1.79 3.84 1.79 2.2 0 3.6-1.1 4.2-3.3-.84 1.1-1.82 1.51-2.94 1.23-.64-.16-1.1-.63-1.6-1.14-.82-.83-1.77-1.79-3.84-1.79z" fill="#fb923c" transform="translate(0, 6) scale(1.1)"/>
           </svg>
           <h3>Tauri v2</h3>
           <p>Tiny bundles, native webview, cross-platform</p>
-        </div>
-        <div class="stack-card fade-in">
+        </a>
+        <a href="https://svelte.dev" target="_blank" rel="noopener" class="stack-card fade-in">
           <svg viewBox="0 0 48 48" fill="none">
             <rect width="48" height="48" rx="12" fill="rgba(248, 81, 73, 0.1)"/>
             <path d="M24 12l8 14H16l8-14z" fill="#f85149" opacity="0.8"/>
@@ -1328,15 +1361,15 @@
           </svg>
           <h3>Svelte 5</h3>
           <p>Runes, zero runtime, reactive by default</p>
-        </div>
-        <div class="stack-card fade-in">
+        </a>
+        <a href="https://www.rust-lang.org" target="_blank" rel="noopener" class="stack-card fade-in">
           <svg viewBox="0 0 48 48" fill="none">
             <rect width="48" height="48" rx="12" fill="rgba(96, 165, 250, 0.1)"/>
             <text x="24" y="32" text-anchor="middle" font-size="20" font-weight="800" fill="#60a5fa">Rs</text>
           </svg>
           <h3>Rust</h3>
           <p>Memory safe, blazing fast, no GC</p>
-        </div>
+        </a>
       </div>
     </div>
   </section>
