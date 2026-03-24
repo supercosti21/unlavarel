@@ -9,6 +9,15 @@
   let { domain = "" } = $props();
   let copyFeedback = $state(false);
 
+  function friendlySharingError(raw) {
+    const msg = String(raw).toLowerCase();
+    if (msg.includes("not found") || msg.includes("no such")) return "Tunnel provider not found. Install ngrok or cloudflared first.";
+    if (msg.includes("auth") || msg.includes("token")) return "Authentication failed. Check your ngrok/cloudflare credentials.";
+    if (msg.includes("already") || msg.includes("in use")) return "A tunnel is already running for this site.";
+    if (msg.includes("timeout")) return "Connection timed out. Check your internet.";
+    return String(raw);
+  }
+
   $effect(() => {
     loadProviders();
   });
@@ -27,7 +36,7 @@
       shareInfo = await invoke("share_site", { domain });
       toastStore.success("Site shared publicly");
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySharingError(e));
     } finally {
       sharing = false;
     }
@@ -39,7 +48,7 @@
       shareInfo = null;
       toastStore.info("Sharing stopped");
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySharingError(e));
     }
   }
 

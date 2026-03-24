@@ -14,10 +14,34 @@
   let loading = $state(true);
   let queryRunning = $state(false);
   let error = $state(null);
+  let connectionError = $state(false);
   let newDbName = $state("");
   let showCreateDb = $state(false);
   let tableData = $state(null);
   let confirmDrop = $state(null);
+
+  function friendlyDbError(raw) {
+    const msg = String(raw).toLowerCase();
+    if (msg.includes("can't connect") || msg.includes("connection refused") || msg.includes("hy000")) {
+      return "Database service is not running. Start it from the Dashboard first.";
+    }
+    if (msg.includes("access denied")) {
+      return "Access denied. Check your database credentials.";
+    }
+    if (msg.includes("unknown database")) {
+      return "Database not found. It may have been dropped.";
+    }
+    if (msg.includes("already exists")) {
+      return "A database with that name already exists.";
+    }
+    if (msg.includes("syntax error") || msg.includes("you have an error in your sql")) {
+      return "SQL syntax error. Please review your query.";
+    }
+    if (msg.includes("no such")) {
+      return "Database server not found. Is it installed?";
+    }
+    return String(raw);
+  }
 
   $effect(() => {
     init();
@@ -25,11 +49,14 @@
 
   async function init() {
     loading = true;
+    connectionError = false;
     try {
       conn = await invoke("db_get_connection");
       await loadDatabases();
     } catch (e) {
-      error = String(e);
+      const msg = String(e).toLowerCase();
+      connectionError = msg.includes("can't connect") || msg.includes("connection refused") || msg.includes("hy000") || msg.includes("no such");
+      error = friendlyDbError(e);
     } finally {
       loading = false;
     }
@@ -40,7 +67,7 @@
     try {
       databases = await invoke("db_list_databases", { conn });
     } catch (e) {
-      error = String(e);
+      error = friendlyDbError(e);
       databases = [];
     }
   }
@@ -56,7 +83,7 @@
     try {
       tables = await invoke("db_list_tables", { conn, database: name });
     } catch (e) {
-      error = String(e);
+      error = friendlyDbError(e);
       tables = [];
     }
   }
@@ -71,7 +98,7 @@
         query: `SELECT * FROM ${conn.db_type === 'postgresql' ? '"' + name + '"' : '`' + name + '`'} LIMIT 100`,
       });
     } catch (e) {
-      error = String(e);
+      error = friendlyDbError(e);
     }
   }
 
@@ -85,7 +112,7 @@
       showCreateDb = false;
       await loadDatabases();
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlyDbError(e));
     }
   }
 
@@ -102,7 +129,7 @@
       confirmDrop = null;
       await loadDatabases();
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlyDbError(e));
       confirmDrop = null;
     }
   }
@@ -120,7 +147,7 @@
       });
       toastStore.success(queryResult.message || "Query executed");
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlyDbError(e));
     } finally {
       queryRunning = false;
     }
@@ -138,6 +165,18 @@
     <div class="dbm__loading">
       <span class="spinner"></span>
       <span>Connecting to database...</span>
+    </div>
+  {:else if connectionError}
+    <div class="dbm__loading">
+      <Icon name="database" size={40} />
+      <h3 style="font-size: var(--text-base); color: var(--color-text-secondary)">Database not available</h3>
+      <p style="font-size: var(--text-sm); color: var(--color-text-muted); max-width: 300px; text-align: center; line-height: 1.5">
+        Start your database service (MySQL, MariaDB, or PostgreSQL) from the Dashboard, then come back here.
+      </p>
+      <button class="btn-primary" onclick={init} style="margin-top: var(--space-2)">
+        <Icon name="refresh" size={14} />
+        Retry Connection
+      </button>
     </div>
   {:else}
     <!-- Sidebar: database list -->

@@ -11,6 +11,15 @@
   let confirmDelete = $state(null);
   let confirmRestore = $state(null);
 
+  function friendlySnapError(raw) {
+    const msg = String(raw).toLowerCase();
+    if (msg.includes("no space") || msg.includes("disk")) return "Not enough disk space to create snapshot.";
+    if (msg.includes("permission") || msg.includes("denied")) return "Permission denied. Check folder permissions.";
+    if (msg.includes("not found")) return "Snapshot or target directory not found.";
+    if (msg.includes("database")) return "Database backup failed. Is the DB service running?";
+    return String(raw);
+  }
+
   $effect(() => {
     loadSnapshots();
   });
@@ -34,7 +43,7 @@
       toastStore.success("Snapshot created");
       await loadSnapshots();
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySnapError(e));
     } finally {
       creating = false;
     }
@@ -50,7 +59,7 @@
       toastStore.success(result);
       confirmRestore = null;
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySnapError(e));
       confirmRestore = null;
     }
   }
@@ -62,7 +71,7 @@
       confirmDelete = null;
       await loadSnapshots();
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySnapError(e));
       confirmDelete = null;
     }
   }

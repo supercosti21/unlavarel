@@ -9,6 +9,15 @@
   let loadingExtensions = $state(true);
   let switching = $state(false);
 
+  function friendlyPhpError(raw) {
+    const msg = String(raw).toLowerCase();
+    if (msg.includes("not found") || msg.includes("no such")) return "PHP is not installed. Install it from the Setup Wizard.";
+    if (msg.includes("permission") || msg.includes("denied")) return "Permission denied. Authenticate first.";
+    if (msg.includes("password") || msg.includes("auth")) return "Admin password required. Authenticate from the Dashboard.";
+    if (msg.includes("already")) return "This PHP version is already active.";
+    return String(raw);
+  }
+
   const dbExts = ["pdo_mysql", "pdo_pgsql", "pdo_sqlite", "mysqli", "pgsql", "sqlite3"];
   const cacheExts = ["redis", "memcached", "apcu", "opcache"];
   const debugExts = ["xdebug", "pcov"];
@@ -60,7 +69,7 @@
       await loadVersions();
       await loadExtensions();
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlyPhpError(e));
     } finally {
       switching = false;
     }
@@ -75,7 +84,7 @@
       toastStore.success(result);
       await loadExtensions();
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlyPhpError(e));
     }
   }
 </script>

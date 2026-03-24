@@ -12,6 +12,15 @@
   let installedServices = $state([]);
   let uninstalling = $state(null);
 
+  function friendlySettingsError(raw) {
+    const msg = String(raw).toLowerCase();
+    if (msg.includes("permission") || msg.includes("denied")) return "Permission denied. Authenticate first.";
+    if (msg.includes("password") || msg.includes("auth") || msg.includes("pkexec")) return "Admin password required. Authenticate from the Dashboard.";
+    if (msg.includes("not found") || msg.includes("no such")) return "Package not found. It may have been removed already.";
+    if (msg.includes("in use") || msg.includes("running")) return "Stop the service first before uninstalling.";
+    return String(raw);
+  }
+
   $effect(() => {
     loadSettings();
     loadPhpVersions();
@@ -23,7 +32,7 @@
     try {
       settings = await invoke("get_settings");
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySettingsError(e));
     } finally {
       loading = false;
     }
@@ -55,7 +64,7 @@
       toastStore.success(result);
       await loadInstalledServices();
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySettingsError(e));
     } finally {
       uninstalling = null;
     }
@@ -71,7 +80,7 @@
         toastStore.warning("Some dependencies are missing");
       }
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySettingsError(e));
     } finally {
       healthLoading = false;
     }
@@ -84,7 +93,7 @@
       toastStore.success("Settings saved");
       document.documentElement.setAttribute("data-theme", settings.theme);
     } catch (e) {
-      toastStore.error(String(e));
+      toastStore.error(friendlySettingsError(e));
     } finally {
       saving = false;
     }
