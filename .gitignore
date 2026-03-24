@@ -17,6 +17,9 @@ Desktop.ini
 *.swo
 *~
 
+# Wiki (separate git repo: supercosti21/unlavarel.wiki.git)
+docs/wiki/
+
 # Environment
 .env
 .env.local
