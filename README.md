@@ -1,6 +1,19 @@
-# Unlavarel
+<p align="center">
+  <img src="docs/logo.svg" alt="Unlavarel" width="220">
+</p>
 
-A cross-platform local development environment manager. Open source, free, and built for performance.
+<p align="center">
+  A cross-platform local development environment manager.<br>
+  Open source, free, and built for performance.
+</p>
+
+<p align="center">
+  <a href="https://github.com/supercosti21/unlavarel/releases"><img src="https://img.shields.io/github/v/release/supercosti21/unlavarel?style=flat-square&color=7c5bf0" alt="Release"></a>
+  <a href="https://github.com/supercosti21/unlavarel/blob/main/LICENSE"><img src="https://img.shields.io/github/license/supercosti21/unlavarel?style=flat-square" alt="License"></a>
+  <a href="https://supercosti21.github.io/unlavarel/"><img src="https://img.shields.io/badge/website-live-34d399?style=flat-square" alt="Website"></a>
+</p>
+
+---
 
 Like Laragon, but for macOS, Linux, and Windows.
 
