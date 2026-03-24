@@ -15,23 +15,62 @@
 
 ---
 
-Like Laragon, but for macOS, Linux, and Windows.
+Like Laragon, but open source and cross-platform. Built with Rust for speed.
 
 ## Features
 
-- **Service management** — PHP-FPM, MySQL/MariaDB/PostgreSQL, Nginx, Redis, Memcached
-- **Multi-version support** — Switch between PHP 8.1–8.4, multiple DB versions, Node.js
-- **Project management** — Auto virtual hosts, SSL certificates, database creation
-- **Mail testing** — Mailpit integration with embedded inbox
-- **DNS resolution** — dnsmasq for *.test domains (no /etc/hosts editing)
-- **SSL** — Local trusted certificates via mkcert
-- **Cross-platform** — macOS (Homebrew), Linux (apt/pacman), Windows (winget)
+- **Dashboard** — Start, stop, restart services with one click. Real-time status, PID, and port monitoring
+- **Service discovery** — Auto-detects installed services at startup, shows only what you have
+- **Multi-version PHP** — Switch between PHP 8.1–8.4 instantly, toggle extensions by category
+- **Database manager** — Create/drop databases, browse tables, inspect schemas, run SQL queries
+- **Project scaffolding** — Create Laravel, Filament, Symfony, WordPress projects with one click
+- **Virtual hosts** — Auto-generated Nginx configs per project with PHP-FPM socket detection
+- **SSL certificates** — Local HTTPS via mkcert, auto-generated per domain
+- **DNS resolution** — dnsmasq for `*.test` domains (no `/etc/hosts` editing, no root)
+- **Mail testing** — Built-in mail viewer with Mailpit (message list, read/unread, HTML preview)
+- **Site sharing** — Public URLs via Cloudflare Tunnels or ngrok
+- **Project snapshots** — One-click backup (files + database), timestamped, restorable
+- **Health check** — Verify all dependencies, services, DNS, SSL, and configuration
+- **Session password caching** — Authenticate once, reuse for the session (Linux/macOS)
+- **System tray** — Show/hide, start/stop all, quit from tray icon
+- **Dark/Light theme** — GitHub-inspired design system, Linear-style UI
+- **Keyboard shortcuts** — Ctrl+1-7 navigate, Ctrl+R refresh, Ctrl+N new project
+
+## Supported Services
+
+| Category | Services |
+|----------|----------|
+| Web Server | Nginx |
+| Language | PHP 8.1, 8.2, 8.3, 8.4 |
+| Database | MySQL, MariaDB, PostgreSQL 15-17 |
+| Cache | Redis, Memcached |
+| DNS | dnsmasq |
+| Mail | Mailpit |
+| Tools | Composer, Node.js, mkcert |
+| Sharing | ngrok, Cloudflared |
 
 ## Tech Stack
 
 - **Backend**: Rust + Tauri v2
-- **Frontend**: Svelte 5 + custom CSS
+- **Frontend**: Svelte 5 (runes) + custom CSS
 - **Package management**: Native OS package managers (Homebrew, apt, pacman, winget)
+- **No Docker, no Electron, no YAML config**
+
+## Installation
+
+Download the latest release for your platform:
+
+| Platform | Format |
+|----------|--------|
+| macOS | `.dmg` (universal) |
+| Linux (Debian/Ubuntu) | `.deb`, `.AppImage` |
+| Linux (Arch) | `.AppImage` |
+| Windows | `.exe`, `.msi` |
+
+[Download Latest Release](https://github.com/supercosti21/unlavarel/releases/latest)
+
+> **macOS note**: The DMG is unsigned. After installing, run:
+> `xattr -rd com.apple.quarantine /Applications/Unlavarel.app`
 
 ## Development
 
@@ -41,10 +80,10 @@ Like Laragon, but for macOS, Linux, and Windows.
 - [Node.js](https://nodejs.org/) (22+)
 - Platform dependencies:
   - **macOS**: Xcode Command Line Tools
-  - **Linux (Debian/Ubuntu)**: `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`
-  - **Linux (Arch)**: `sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3`
+  - **Arch Linux**: `sudo pacman -S webkit2gtk-4.1 libappindicator-gtk3`
+  - **Debian/Ubuntu**: `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`
 
-### Setup
+### Run
 
 ```bash
 npm install
@@ -55,6 +94,46 @@ npm run tauri dev
 
 ```bash
 npm run tauri build
+```
+
+### Lint
+
+```bash
+cd src-tauri && cargo clippy
+```
+
+## Architecture
+
+```
+src-tauri/src/           Rust backend (Tauri v2)
+  lib.rs                 Tauri builder, 40+ command registrations
+  discovery.rs           Parallel service detection at startup
+  services.rs            Start/stop/restart, status + PID + port
+  setup.rs               First-run wizard, stack installer, health check
+  settings.rs            App settings persistence
+  database.rs            DB manager (MySQL/MariaDB/PostgreSQL)
+  vhosts.rs              Nginx config generation, PHP-FPM socket detection
+  dns.rs                 dnsmasq configuration
+  ssl.rs                 mkcert certificate generation
+  projects.rs            Project CRUD + vhost/SSL/DB pipeline
+  quickapp.rs            Project templates (Laravel, Filament, Symfony, WP)
+  php.rs                 PHP version switching, extension management
+  sharing.rs             ngrok/Cloudflare tunnel management
+  snapshots.rs           File + DB backup/restore
+  elevated.rs            Session password caching + elevated execution
+  logs.rs                Real-time log streaming via Tauri events
+  tray.rs                System tray icon + menu
+  mail.rs                Mailpit PHP sendmail_path configuration
+  package_manager/       PackageManager trait (Homebrew, apt, pacman, winget)
+  service_manager/       ServiceManager trait (brew services, systemd, Windows)
+  platform/              OS detection, architecture, distribution
+  registry/              packages.toml name mapping
+
+src/                     Svelte 5 frontend
+  App.svelte             Root component, routing, keyboard shortcuts
+  app.css                Design system (CSS variables, dark/light)
+  lib/components/        UI components (17 components)
+  lib/stores/            Reactive stores (.svelte.js)
 ```
 
 ## License
