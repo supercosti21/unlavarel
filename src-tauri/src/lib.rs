@@ -21,6 +21,7 @@ pub mod snapshots;
 pub mod database;
 pub mod elevated;
 
+use tauri::Manager;
 use discovery::{discover_services, get_cached_services};
 use services::{
     get_services, start_service, stop_service, restart_service,
@@ -42,6 +43,13 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             tray::setup_tray(app)?;
+            // Start minimized if user enabled the setting
+            let settings = settings::get_settings_sync();
+            if settings.start_minimized {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

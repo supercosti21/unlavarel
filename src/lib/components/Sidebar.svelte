@@ -69,10 +69,12 @@
     display: flex;
     flex-direction: column;
     padding: var(--space-4) 0;
+    padding-top: 0;
   }
 
   .sidebar__header {
     padding: 0 var(--space-4) var(--space-4);
+    padding-top: 42px; /* space for traffic lights */
     border-bottom: 1px solid var(--color-border-subtle);
     display: flex;
     align-items: baseline;

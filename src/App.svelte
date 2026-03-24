@@ -225,9 +225,10 @@
   }
 </script>
 
+<Titlebar />
+
 {#if checkingSetup}
   <div class="app app--vertical">
-    <Titlebar />
     <div class="app--loading">
       <div class="app__splash">
         <h1>Unlavarel</h1>
@@ -238,7 +239,6 @@
 
 {:else if showSetup}
   <div class="app app--vertical">
-    <Titlebar />
     <div class="app--setup">
       <SetupWizard onComplete={handleSetupComplete} />
     </div>
@@ -246,7 +246,6 @@
 
 {:else}
   <div class="app app--vertical">
-    <Titlebar />
     <div class="app__body">
       <Sidebar {activePage} onNavigate={handleNavigate} />
 

@@ -167,6 +167,11 @@
           <span class="settings__switch-track"></span>
           <span>Auto-start services on app launch</span>
         </label>
+        <label class="settings__switch">
+          <input type="checkbox" bind:checked={settings.start_minimized} />
+          <span class="settings__switch-track"></span>
+          <span>Start minimized to tray</span>
+        </label>
       </section>
 
       <div class="settings__actions">

@@ -2,6 +2,11 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
 
   const appWindow = getCurrentWindow();
+  let hovering = $state(false);
+
+  async function close() {
+    await appWindow.close();
+  }
 
   async function minimize() {
     await appWindow.minimize();
@@ -10,85 +15,102 @@
   async function toggleMaximize() {
     await appWindow.toggleMaximize();
   }
-
-  async function close() {
-    await appWindow.close();
-  }
 </script>
 
-<header class="titlebar">
-  <div class="titlebar__drag" data-tauri-drag-region>
-    <span class="titlebar__title" data-tauri-drag-region>Unlavarel</span>
-  </div>
-  <div class="titlebar__controls">
-    <button class="titlebar__btn" onclick={minimize} aria-label="Minimize">
-      <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
-    </button>
-    <button class="titlebar__btn" onclick={toggleMaximize} aria-label="Maximize">
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="0.6" y="0.6" width="8.8" height="8.8" rx="1"/></svg>
-    </button>
-    <button class="titlebar__btn titlebar__btn--close" onclick={close} aria-label="Close">
-      <svg width="10" height="10" viewBox="0 0 10 10" stroke="currentColor" stroke-width="1.4"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
-    </button>
-  </div>
-</header>
+<!-- Invisible drag region across the top of the window -->
+<div class="titlebar-drag" data-tauri-drag-region></div>
+
+<!-- macOS-style traffic lights, placed absolutely top-left -->
+<div
+  class="traffic-lights"
+  role="group"
+  aria-label="Window controls"
+  onmouseenter={() => (hovering = true)}
+  onmouseleave={() => (hovering = false)}
+>
+  <button class="tl tl--close" onclick={close} aria-label="Close">
+    {#if hovering}
+      <svg width="8" height="8" viewBox="0 0 8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <line x1="1.5" y1="1.5" x2="6.5" y2="6.5"/><line x1="6.5" y1="1.5" x2="1.5" y2="6.5"/>
+      </svg>
+    {/if}
+  </button>
+  <button class="tl tl--minimize" onclick={minimize} aria-label="Minimize">
+    {#if hovering}
+      <svg width="8" height="8" viewBox="0 0 8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <line x1="1" y1="4" x2="7" y2="4"/>
+      </svg>
+    {/if}
+  </button>
+  <button class="tl tl--maximize" onclick={toggleMaximize} aria-label="Maximize">
+    {#if hovering}
+      <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+        <path d="M1 3.5L4 0.5L7 3.5H5V7.5H3V3.5H1Z"/>
+      </svg>
+    {/if}
+  </button>
+</div>
 
 <style>
-  .titlebar {
+  /* Invisible drag region — full width strip at the top */
+  .titlebar-drag {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 38px;
-    background: var(--color-bg-secondary);
-    border-bottom: 1px solid var(--color-border);
+    z-index: 0;
+    -webkit-app-region: drag;
+  }
+
+  .traffic-lights {
+    position: fixed;
+    top: 12px;
+    left: 14px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    user-select: none;
-    -webkit-user-select: none;
+    gap: 8px;
+    z-index: 10;
+    -webkit-app-region: no-drag;
   }
 
-  .titlebar__drag {
-    flex: 1;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    padding-left: var(--space-4);
-  }
-
-  .titlebar__title {
-    font-size: var(--text-xs);
-    font-weight: var(--font-semibold);
-    color: var(--color-text-secondary);
-    letter-spacing: 0.02em;
-    pointer-events: none;
-  }
-
-  .titlebar__controls {
-    display: flex;
-    height: 100%;
-  }
-
-  .titlebar__btn {
-    width: 46px;
-    height: 100%;
+  .tl {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 0;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition: filter 120ms ease;
+    color: rgba(0, 0, 0, 0.55);
+    position: relative;
   }
 
-  .titlebar__btn:hover {
-    background: var(--color-bg-hover);
-    color: var(--color-text-primary);
+  .tl:active {
+    filter: brightness(0.8);
   }
 
-  .titlebar__btn--close:hover {
-    background: var(--color-danger);
-    color: var(--color-text-on-accent);
+  .tl--close {
+    background: #ff5f57;
+  }
+
+  .tl--minimize {
+    background: #febc2e;
+  }
+
+  .tl--maximize {
+    background: #28c840;
+  }
+
+  /* Dim when window is unfocused */
+  .traffic-lights:not(:hover) .tl {
+    /* Default visible state */
+  }
+
+  .tl svg {
+    width: 8px;
+    height: 8px;
   }
 </style>

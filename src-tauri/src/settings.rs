@@ -7,6 +7,7 @@ pub struct AppSettings {
     pub default_php_version: String,  // e.g. "8.3"
     pub project_root: String,         // default directory for new projects
     pub auto_start_services: bool,    // start services on app launch
+    pub start_minimized: bool,        // start app minimized to tray
     pub editor_command: String,       // e.g. "code", "phpstorm", "subl"
     pub browser_command: String,      // e.g. "open", "xdg-open"
 }
@@ -42,6 +43,7 @@ impl Default for AppSettings {
             default_php_version: "8.3".into(),
             project_root,
             auto_start_services: false,
+            start_minimized: false,
             editor_command,
             browser_command,
         }
@@ -69,6 +71,11 @@ fn save_to_disk(settings: &AppSettings) -> Result<(), String> {
     let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Synchronous settings read (for use in setup, before async context)
+pub fn get_settings_sync() -> AppSettings {
+    load_from_disk()
 }
 
 #[tauri::command]

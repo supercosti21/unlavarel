@@ -12,6 +12,21 @@ pub struct Service {
     pub category: String,
     pub has_service: bool,
     pub pid: Option<u32>,
+    pub port: Option<u16>,
+}
+
+fn default_port(id: &str) -> Option<u16> {
+    match id {
+        "nginx" => Some(80),
+        "php" => Some(9000),
+        "mysql" | "mariadb" => Some(3306),
+        "postgresql" => Some(5432),
+        "redis" => Some(6379),
+        "memcached" => Some(11211),
+        "dnsmasq" => Some(53),
+        "mailpit" => Some(8025),
+        _ => None,
+    }
 }
 
 impl Service {
@@ -24,6 +39,7 @@ impl Service {
             category: svc.category.clone(),
             has_service: svc.has_service,
             pid,
+            port: default_port(&svc.id),
         }
     }
 }
@@ -90,15 +106,19 @@ pub async fn start_service(name: String) -> Result<Service, String> {
 
     match svc {
         Some(s) => Ok(Service::from_discovery(s, &status, info.pid)),
-        None => Ok(Service {
-            id: name.clone(),
-            name,
-            status,
-            version: String::new(),
-            category: String::new(),
-            has_service: true,
-            pid: info.pid,
-        }),
+        None => {
+            let port = default_port(&name);
+            Ok(Service {
+                id: name.clone(),
+                name,
+                status,
+                version: String::new(),
+                category: String::new(),
+                has_service: true,
+                pid: info.pid,
+                port,
+            })
+        },
     }
 }
 
@@ -119,15 +139,19 @@ pub async fn stop_service(name: String) -> Result<Service, String> {
 
     match svc {
         Some(s) => Ok(Service::from_discovery(s, &status, info.pid)),
-        None => Ok(Service {
-            id: name.clone(),
-            name,
-            status,
-            version: String::new(),
-            category: String::new(),
-            has_service: true,
-            pid: info.pid,
-        }),
+        None => {
+            let port = default_port(&name);
+            Ok(Service {
+                id: name.clone(),
+                name,
+                status,
+                version: String::new(),
+                category: String::new(),
+                has_service: true,
+                pid: info.pid,
+                port,
+            })
+        },
     }
 }
 
@@ -148,15 +172,19 @@ pub async fn restart_service(name: String) -> Result<Service, String> {
 
     match svc {
         Some(s) => Ok(Service::from_discovery(s, &status, info.pid)),
-        None => Ok(Service {
-            id: name.clone(),
-            name,
-            status,
-            version: String::new(),
-            category: String::new(),
-            has_service: true,
-            pid: info.pid,
-        }),
+        None => {
+            let port = default_port(&name);
+            Ok(Service {
+                id: name.clone(),
+                name,
+                status,
+                version: String::new(),
+                category: String::new(),
+                has_service: true,
+                pid: info.pid,
+                port,
+            })
+        },
     }
 }
 

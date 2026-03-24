@@ -66,6 +66,14 @@
     {#if service.version}
       <span class="service-card__version mono">{service.version}</span>
     {/if}
+    <div class="service-card__details">
+      {#if service.port}
+        <span class="service-card__detail mono">:{service.port}</span>
+      {/if}
+      {#if service.pid && isRunning}
+        <span class="service-card__detail mono">PID {service.pid}</span>
+      {/if}
+    </div>
   </div>
 
   {#if service.has_service}
@@ -143,6 +151,17 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .service-card__details {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: 2px;
+  }
+
+  .service-card__detail {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
   }
 
   .service-card__actions {
