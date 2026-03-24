@@ -5,6 +5,7 @@ use tokio::process::Command;
 use crate::platform::detect::{detect_platform, DetectedPlatform};
 use crate::platform::{current_os, OsType};
 
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetupState {
     pub platform: DetectedPlatform,
@@ -33,6 +34,10 @@ pub struct PreScanResult {
 pub struct PreScanItem {
     pub name: String,
     pub version: String,
+    /// Machine-readable ID (e.g. "php", "mysql", "redis")
+    pub id: String,
+    /// Extracted version number (e.g. "8.3" for PHP, "8.0" for MySQL)
+    pub version_number: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,24 +93,25 @@ pub async fn bootstrap_package_manager() -> Result<String, String> {
 /// Pre-scan: check what's already installed before showing install options
 #[tauri::command]
 pub async fn pre_scan_system() -> Result<PreScanResult, String> {
-    let checks = vec![
-        ("PHP", "php", vec!["-v"]),
-        ("Composer", "composer", vec!["--version"]),
-        ("Nginx", "nginx", vec!["-v"]),
-        ("MySQL/MariaDB", "mysql", vec!["--version"]),
-        ("PostgreSQL", "psql", vec!["--version"]),
-        ("Redis", "redis-server", vec!["--version"]),
-        ("Memcached", "memcached", vec!["-h"]),
-        ("Node.js", "node", vec!["--version"]),
-        ("dnsmasq", "dnsmasq", vec!["--version"]),
-        ("mkcert", "mkcert", vec!["--version"]),
-        ("Mailpit", "mailpit", vec!["version"]),
+    // (display_name, id, binary, args)
+    let checks: Vec<(&str, &str, &str, Vec<&str>)> = vec![
+        ("PHP", "php", "php", vec!["-v"]),
+        ("Composer", "composer", "composer", vec!["--version"]),
+        ("Nginx", "nginx", "nginx", vec!["-v"]),
+        ("MySQL/MariaDB", "mysql", "mysql", vec!["--version"]),
+        ("PostgreSQL", "postgresql", "psql", vec!["--version"]),
+        ("Redis", "redis", "redis-server", vec!["--version"]),
+        ("Memcached", "memcached", "memcached", vec!["-h"]),
+        ("Node.js", "node", "node", vec!["--version"]),
+        ("dnsmasq", "dnsmasq", "dnsmasq", vec!["--version"]),
+        ("mkcert", "mkcert", "mkcert", vec!["--version"]),
+        ("Mailpit", "mailpit", "mailpit", vec!["version"]),
     ];
 
     let mut installed = Vec::new();
     let mut missing = Vec::new();
 
-    for (name, binary, args) in &checks {
+    for (name, id, binary, args) in &checks {
         let output = Command::new(binary).args(args.as_slice()).output().await;
         match output {
             Ok(o) => {
@@ -116,9 +122,21 @@ pub async fn pre_scan_system() -> Result<PreScanResult, String> {
                 };
                 let first_line = text.lines().next().unwrap_or("").trim();
                 if !first_line.is_empty() {
+                    // Extract version number from output
+                    let version_number = extract_version_number(first_line, id);
+
+                    // Detect if "mysql" is actually MariaDB
+                    let actual_id = if *id == "mysql" && first_line.to_lowercase().contains("mariadb") {
+                        "mariadb"
+                    } else {
+                        id
+                    };
+
                     installed.push(PreScanItem {
                         name: name.to_string(),
                         version: first_line.to_string(),
+                        id: actual_id.to_string(),
+                        version_number,
                     });
                 } else {
                     missing.push(name.to_string());
@@ -131,6 +149,32 @@ pub async fn pre_scan_system() -> Result<PreScanResult, String> {
     }
 
     Ok(PreScanResult { installed, missing })
+}
+
+/// Extract a meaningful version number from command output
+fn extract_version_number(output: &str, id: &str) -> Option<String> {
+    // Find patterns like X.Y or X.Y.Z
+    let re_pattern = regex_lite::Regex::new(r"(\d+\.\d+(?:\.\d+)?)").ok()?;
+    let captures = re_pattern.captures(output)?;
+    let full_version = captures.get(1)?.as_str();
+
+    match id {
+        // PHP: return major.minor (e.g. "8.3" from "8.3.15")
+        "php" => {
+            let parts: Vec<&str> = full_version.split('.').collect();
+            if parts.len() >= 2 {
+                Some(format!("{}.{}", parts[0], parts[1]))
+            } else {
+                Some(full_version.to_string())
+            }
+        }
+        // Node: return major (e.g. "22" from "22.5.0")
+        "node" => {
+            let parts: Vec<&str> = full_version.split('.').collect();
+            parts.first().map(|s| s.to_string())
+        }
+        _ => Some(full_version.to_string()),
+    }
 }
 
 #[tauri::command]
@@ -208,28 +252,11 @@ async fn install_stack_linux(selection: StackSelection) -> Result<Vec<String>, S
         ));
     }
 
-    // Write script to temp file
-    let script_path = "/tmp/macenv_install.sh";
-    tokio::fs::write(script_path, &script)
-        .await
-        .map_err(|e| format!("Failed to write install script: {}", e))?;
-
-    // Make executable
-    Command::new("chmod")
-        .args(["+x", script_path])
-        .output()
-        .await
-        .ok();
-
-    // Run with pkexec — ONE password prompt for everything
-    let output = Command::new("pkexec")
-        .args(["bash", script_path])
-        .output()
+    // Run with elevated privileges — uses session-cached password if available,
+    // otherwise falls back to pkexec (ONE password prompt for everything)
+    let output = crate::elevated::run_script_elevated(&script)
         .await
         .map_err(|e| format!("Failed to run installer: {}", e))?;
-
-    // Cleanup
-    tokio::fs::remove_file(script_path).await.ok();
 
     let mut results = Vec::new();
     let stderr = String::from_utf8_lossy(&output.stderr);

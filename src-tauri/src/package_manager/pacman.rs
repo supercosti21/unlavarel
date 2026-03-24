@@ -19,19 +19,21 @@ impl Pacman {
         Self
     }
 
-    /// Run pacman with sudo for operations that need it (-S, -R, -Sy).
+    /// Run pacman with elevation for operations that need it (-S, -R, -Sy).
+    /// Uses session-cached password via run_elevated (no repeated pkexec prompts).
     async fn run_pacman(&self, args: &[&str]) -> Result<String> {
         let needs_sudo = args.first().is_some_and(|a| {
             *a == "-S" || *a == "-R" || *a == "-Sy" || *a == "-Syu"
         });
 
         let output = if needs_sudo {
-            Command::new("pkexec")
-                .arg("pacman")
-                .args(args)
-                .arg("--noconfirm")
-                .output()
-                .await?
+            // Build: pacman <args> --noconfirm
+            let mut cmd_args: Vec<&str> = args.to_vec();
+            cmd_args.push("--noconfirm");
+            let script = format!("pacman {}", cmd_args.join(" "));
+            crate::elevated::run_script_elevated(&script)
+                .await
+                .map_err(MacEnvError::Other)?
         } else {
             Command::new("pacman")
                 .args(args)

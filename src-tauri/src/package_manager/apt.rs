@@ -19,13 +19,16 @@ impl Apt {
         Self
     }
 
+    /// Run apt-get with elevation using session-cached password.
+    /// No repeated pkexec prompts — uses run_script_elevated.
     async fn run_apt(&self, args: &[&str]) -> Result<String> {
-        let output = Command::new("pkexec")
-            .arg("apt-get")
-            .args(args)
-            .env("DEBIAN_FRONTEND", "noninteractive")
-            .output()
-            .await?;
+        let script = format!(
+            "export DEBIAN_FRONTEND=noninteractive; apt-get {}",
+            args.join(" ")
+        );
+        let output = crate::elevated::run_script_elevated(&script)
+            .await
+            .map_err(MacEnvError::Other)?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
