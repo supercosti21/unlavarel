@@ -29,9 +29,12 @@
   let showQuickApp = $state(false);
   let showImportProject = $state(false);
   let showPasswordDialog = $state(false);
+  let showCommandPalette = $state(false);
   let pendingAction = $state(null);
   let activeLogService = $state(null);
   let unlistenLog = $state(null);
+  let refreshInterval = $state(null);
+  let foundProjects = $state([]);
 
   // Page map for keyboard shortcuts (Ctrl+1..6, Ctrl+7=settings)
   const pageShortcuts = {
@@ -73,6 +76,25 @@
         e.preventDefault();
         showQuickApp = true;
         return;
+      }
+
+      // Ctrl+K / Cmd+K — command palette
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        showCommandPalette = !showCommandPalette;
+        return;
+      }
+
+      // Ctrl+T — open terminal
+      if ((e.ctrlKey || e.metaKey) && e.key === "t") {
+        e.preventDefault();
+        invoke("open_terminal", {}).catch(() => {});
+        return;
+      }
+
+      // Escape — close modals
+      if (e.key === "Escape") {
+        showCommandPalette = false;
       }
     }
 
@@ -129,6 +151,34 @@
   async function loadData() {
     servicesStore.loadServices();
     projectsStore.loadProjects();
+
+    // Auto-refresh services every 5 seconds
+    if (refreshInterval) clearInterval(refreshInterval);
+    refreshInterval = setInterval(() => {
+      servicesStore.loadServices();
+    }, 5000);
+
+    // Auto-check for updates (silent, no error toast)
+    invoke("check_for_updates").then((info) => {
+      if (info?.update_available) {
+        toastStore.info(`Update v${info.latest_version} available — go to Settings`);
+      }
+    }).catch(() => {});
+
+    // Auto-scan project root for unimported projects
+    autoScanProjects();
+  }
+
+  async function autoScanProjects() {
+    try {
+      const settings = await invoke("get_settings");
+      if (!settings.project_root) return;
+      const scanned = await invoke("scan_projects", { directory: settings.project_root });
+      foundProjects = scanned.filter((p) => !p.already_added);
+      if (foundProjects.length > 0) {
+        toastStore.info(`Found ${foundProjects.length} project${foundProjects.length > 1 ? 's' : ''} in ${settings.project_root}`);
+      }
+    } catch {}
   }
 
   function handleSetupComplete() {
@@ -228,6 +278,29 @@
     activePage = "projects";
   }
 
+  // --- Command Palette ---
+  let cmdQuery = $state("");
+  const commands = [
+    { label: "Go to Dashboard", shortcut: "Ctrl+1", action: () => (activePage = "dashboard") },
+    { label: "Go to Projects", shortcut: "Ctrl+2", action: () => (activePage = "projects") },
+    { label: "Go to PHP Manager", shortcut: "Ctrl+3", action: () => (activePage = "php") },
+    { label: "Go to Database", shortcut: "Ctrl+4", action: () => (activePage = "database") },
+    { label: "Go to Mail", shortcut: "Ctrl+5", action: () => (activePage = "mail") },
+    { label: "Go to Config", shortcut: "Ctrl+6", action: () => (activePage = "config") },
+    { label: "Go to Settings", shortcut: "Ctrl+8", action: () => (activePage = "settings") },
+    { label: "New Project", shortcut: "Ctrl+N", action: () => (showQuickApp = true) },
+    { label: "Import Project", action: () => (showImportProject = true) },
+    { label: "Open Terminal", shortcut: "Ctrl+T", action: () => invoke("open_terminal", {}) },
+    { label: "Start All Services", action: () => startAll() },
+    { label: "Stop All Services", action: () => stopAll() },
+    { label: "Refresh Services", shortcut: "Ctrl+R", action: () => servicesStore.loadServices() },
+  ];
+  let filteredCommands = $derived(
+    cmdQuery
+      ? commands.filter((c) => c.label.toLowerCase().includes(cmdQuery.toLowerCase()))
+      : commands
+  );
+
   function handleProjectImported(name, path) {
     // Don't close — user may want to import more (scan mode)
     projectsStore.loadProjects();
@@ -308,6 +381,17 @@
 
         {:else if activePage === "projects"}
           <div class="page">
+            {#if foundProjects.length > 0}
+              <div class="found-projects-banner">
+                <span>{foundProjects.length} project{foundProjects.length > 1 ? 's' : ''} found in your project root</span>
+                <button class="btn-primary btn-sm" onclick={() => (showImportProject = true)}>
+                  Import
+                </button>
+                <button class="btn-ghost btn-sm" onclick={() => (foundProjects = [])}>
+                  Dismiss
+                </button>
+              </div>
+            {/if}
             <SiteList
               projects={projectsStore.projects}
               onAdd={() => (showQuickApp = true)}
@@ -410,6 +494,32 @@
       onSuccess={onPasswordSuccess}
       onCancel={onPasswordCancel}
     />
+  {/if}
+
+  {#if showCommandPalette}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="cmd-overlay" onclick={() => (showCommandPalette = false)}>
+      <div class="cmd-palette" onclick={(e) => e.stopPropagation()}>
+        <input
+          class="cmd-input"
+          type="text"
+          placeholder="Type a command..."
+          autofocus
+          oninput={(e) => (cmdQuery = e.target.value)}
+        />
+        <div class="cmd-list">
+          {#each filteredCommands as cmd}
+            <button class="cmd-item" onclick={() => { showCommandPalette = false; cmd.action(); }}>
+              <span class="cmd-label">{cmd.label}</span>
+              {#if cmd.shortcut}
+                <span class="cmd-shortcut">{cmd.shortcut}</span>
+              {/if}
+            </button>
+          {/each}
+        </div>
+      </div>
+    </div>
   {/if}
 {/if}
 
@@ -575,5 +685,93 @@
   .page__proj-actions {
     display: flex;
     gap: var(--space-2);
+  }
+
+  /* Found projects banner */
+  .found-projects-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-accent-subtle);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+  }
+
+  .found-projects-banner span {
+    flex: 1;
+  }
+
+  /* Command Palette */
+  .cmd-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+    display: flex;
+    justify-content: center;
+    padding-top: 15vh;
+  }
+
+  .cmd-palette {
+    width: 480px;
+    max-height: 400px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-elevated);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    align-self: flex-start;
+  }
+
+  .cmd-input {
+    padding: var(--space-4);
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-primary);
+    font-size: var(--text-base);
+    outline: none;
+  }
+
+  .cmd-list {
+    overflow-y: auto;
+    padding: var(--space-2);
+  }
+
+  .cmd-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-primary);
+    font-size: var(--text-sm);
+    text-align: left;
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+
+  .cmd-item:hover {
+    background: var(--color-bg-hover);
+  }
+
+  .cmd-label {
+    font-weight: var(--font-medium);
+  }
+
+  .cmd-shortcut {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    background: var(--color-bg-tertiary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
   }
 </style>
