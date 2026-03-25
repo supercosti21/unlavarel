@@ -388,6 +388,30 @@ fn build_aur_list(selection: &StackSelection) -> Vec<(String, String)> {
     packages
 }
 
+/// Install a single package by its canonical ID (e.g. "php", "mysql", "redis")
+#[tauri::command]
+pub async fn install_single_package(package_id: String) -> Result<String, String> {
+    let pm = crate::package_manager::create_package_manager();
+
+    let pkg = crate::package_manager::PackageId {
+        canonical: package_id.clone(),
+        version: None,
+    };
+
+    // Check if already installed
+    if pm.is_installed(&pkg).await.unwrap_or(false) {
+        return Ok(format!("{} is already installed", package_id));
+    }
+
+    match pm.install(&pkg).await {
+        Ok(installed) => Ok(format!(
+            "{} ({}) installed successfully",
+            package_id, installed.installed_version
+        )),
+        Err(e) => Err(format!("Failed to install {}: {}", package_id, e)),
+    }
+}
+
 async fn check_binary(name: &str) -> bool {
     Command::new("which")
         .arg(name)

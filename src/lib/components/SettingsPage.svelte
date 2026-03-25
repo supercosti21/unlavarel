@@ -1,5 +1,6 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import Icon from "./Icon.svelte";
   import { toastStore } from "../stores/toast.svelte.js";
 
@@ -11,6 +12,15 @@
   let phpVersions = $state([]);
   let installedServices = $state([]);
   let uninstalling = $state(null);
+  let updateInfo = $state(null);
+  let updateChecking = $state(false);
+  let currentVersion = $state("");
+  let preScan = $state(null);
+  let preScanLoading = $state(false);
+  let installingPkg = $state(null);
+  let updating = $state(false);
+  let updateProgress = $state(null);
+  let updateDone = $state(false);
 
   function friendlySettingsError(raw) {
     const msg = String(raw).toLowerCase();
@@ -25,6 +35,7 @@
     loadSettings();
     loadPhpVersions();
     loadInstalledServices();
+    loadVersion();
   });
 
   async function loadSettings() {
@@ -69,6 +80,118 @@
       uninstalling = null;
     }
   }
+
+  async function loadVersion() {
+    try {
+      currentVersion = await invoke("get_current_version");
+    } catch {
+      currentVersion = "unknown";
+    }
+  }
+
+  async function checkUpdates() {
+    updateChecking = true;
+    updateDone = false;
+    try {
+      updateInfo = await invoke("check_for_updates");
+      if (updateInfo.update_available) {
+        toastStore.info(`Update available: v${updateInfo.latest_version}`);
+      } else {
+        toastStore.success("You're on the latest version");
+      }
+    } catch (e) {
+      toastStore.error(friendlySettingsError(e));
+    } finally {
+      updateChecking = false;
+    }
+  }
+
+  async function applyUpdate() {
+    if (!updateInfo?.download_url) return;
+    updating = true;
+    updateProgress = null;
+    updateDone = false;
+
+    // Listen for progress events
+    const unlisten = await listen("update-progress", (event) => {
+      updateProgress = event.payload;
+    });
+
+    try {
+      const msg = await invoke("download_and_install_update", {
+        downloadUrl: updateInfo.download_url,
+      });
+      updateDone = true;
+      toastStore.success(msg);
+    } catch (e) {
+      toastStore.error(friendlySettingsError(e));
+    } finally {
+      updating = false;
+      unlisten();
+    }
+  }
+
+  async function restartApp() {
+    try {
+      await invoke("restart_app");
+    } catch (e) {
+      toastStore.error("Failed to restart: " + e);
+    }
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(1) + " " + sizes[i];
+  }
+
+  async function runPreScan() {
+    preScanLoading = true;
+    try {
+      preScan = await invoke("pre_scan_system");
+    } catch (e) {
+      toastStore.error(friendlySettingsError(e));
+    } finally {
+      preScanLoading = false;
+    }
+  }
+
+  async function installPkg(packageId) {
+    installingPkg = packageId;
+    try {
+      const result = await invoke("install_single_package", { packageId });
+      toastStore.success(result);
+      // Refresh both scans
+      await runPreScan();
+      await loadInstalledServices();
+    } catch (e) {
+      toastStore.error(friendlySettingsError(e));
+    } finally {
+      installingPkg = null;
+    }
+  }
+
+  const availablePackages = [
+    { id: "php", name: "PHP", category: "Language" },
+    { id: "composer", name: "Composer", category: "Tool" },
+    { id: "nginx", name: "Nginx", category: "Web Server" },
+    { id: "mysql", name: "MySQL", category: "Database" },
+    { id: "mariadb", name: "MariaDB", category: "Database" },
+    { id: "postgresql", name: "PostgreSQL", category: "Database" },
+    { id: "redis", name: "Redis", category: "Cache" },
+    { id: "memcached", name: "Memcached", category: "Cache" },
+    { id: "node", name: "Node.js", category: "Tool" },
+    { id: "dnsmasq", name: "dnsmasq", category: "DNS" },
+    { id: "mkcert", name: "mkcert", category: "SSL" },
+    { id: "mailpit", name: "Mailpit", category: "Mail" },
+  ];
+
+  let installedIds = $derived(preScan ? preScan.installed.map((i) => i.id) : []);
+  let missingPackages = $derived(
+    availablePackages.filter((p) => !installedIds.includes(p.id))
+  );
 
   async function runHealthCheck() {
     healthLoading = true;
@@ -182,6 +305,155 @@
           {saving ? "Saving..." : "Save Settings"}
         </button>
       </div>
+
+      <section class="settings__section">
+        <div class="settings__health-header">
+          <h3>Updates</h3>
+          <button class="btn-ghost" onclick={checkUpdates} disabled={updateChecking}>
+            {#if updateChecking}
+              <span class="spinner spinner--sm"></span>
+            {:else}
+              <Icon name="refresh" size={14} />
+            {/if}
+            {updateChecking ? "Checking..." : "Check for Updates"}
+          </button>
+        </div>
+        <p class="settings__desc">Current version: {currentVersion || "..."}</p>
+        {#if updateInfo}
+          {#if updateInfo.update_available}
+            <div class="settings__update-available">
+              <div class="settings__update-info">
+                <span class="badge badge--warning">v{updateInfo.latest_version} available</span>
+                {#if updateInfo.published_at}
+                  <span class="settings__update-date">{new Date(updateInfo.published_at).toLocaleDateString()}</span>
+                {/if}
+              </div>
+              {#if updateInfo.release_notes}
+                <p class="settings__update-notes">{updateInfo.release_notes.slice(0, 200)}{updateInfo.release_notes.length > 200 ? '...' : ''}</p>
+              {/if}
+
+              {#if updateDone}
+                <div class="settings__update-done">
+                  <Icon name="check" size={16} />
+                  <span>Update installed!</span>
+                  <button class="btn-primary" onclick={restartApp}>
+                    <Icon name="refresh" size={14} />
+                    Restart Now
+                  </button>
+                </div>
+              {:else if updating}
+                <div class="settings__update-progress">
+                  <span class="spinner spinner--sm"></span>
+                  <span>
+                    {#if updateProgress?.phase === "downloading"}
+                      Downloading... {formatBytes(updateProgress.downloaded)}{updateProgress.total ? ` / ${formatBytes(updateProgress.total)}` : ''}
+                    {:else if updateProgress?.phase === "installing"}
+                      Installing update...
+                    {:else}
+                      Preparing...
+                    {/if}
+                  </span>
+                  {#if updateProgress?.total}
+                    <div class="settings__progress-bar">
+                      <div
+                        class="settings__progress-fill"
+                        style="width: {Math.round((updateProgress.downloaded / updateProgress.total) * 100)}%"
+                      ></div>
+                    </div>
+                  {/if}
+                </div>
+              {:else}
+                <button class="btn-primary settings__update-btn" onclick={applyUpdate}>
+                  <Icon name="download" size={14} />
+                  Update & Restart
+                </button>
+              {/if}
+            </div>
+          {:else}
+            <div class="settings__health-summary">
+              <span class="badge badge--success">
+                <Icon name="check" size={12} />
+                Up to date
+              </span>
+            </div>
+          {/if}
+        {/if}
+      </section>
+
+      <section class="settings__section">
+        <div class="settings__health-header">
+          <h3>Package Manager</h3>
+          <button class="btn-ghost" onclick={runPreScan} disabled={preScanLoading}>
+            {#if preScanLoading}
+              <span class="spinner spinner--sm"></span>
+            {:else}
+              <Icon name="refresh" size={14} />
+            {/if}
+            {preScanLoading ? "Scanning..." : "Scan System"}
+          </button>
+        </div>
+        <p class="settings__desc">Check what's installed on your system and install missing packages.</p>
+
+        {#if preScan}
+          {#if preScan.installed.length > 0}
+            <div class="settings__pkg-group">
+              <h4 class="settings__pkg-label">Installed</h4>
+              <div class="settings__packages">
+                {#each preScan.installed as item}
+                  <div class="settings__package-row settings__package-row--installed">
+                    <div class="settings__package-info">
+                      <span class="status-dot status-dot--running"></span>
+                      <span class="settings__package-name">{item.name}</span>
+                      {#if item.version_number}
+                        <span class="badge badge--neutral">{item.version_number}</span>
+                      {/if}
+                    </div>
+                    <span class="settings__package-version">{item.version}</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          {#if missingPackages.length > 0}
+            <div class="settings__pkg-group">
+              <h4 class="settings__pkg-label">Available to Install</h4>
+              <div class="settings__packages">
+                {#each missingPackages as pkg}
+                  <div class="settings__package-row">
+                    <div class="settings__package-info">
+                      <span class="status-dot status-dot--stopped"></span>
+                      <span class="settings__package-name">{pkg.name}</span>
+                      <span class="badge badge--neutral">{pkg.category}</span>
+                    </div>
+                    <button
+                      class="btn-primary btn-sm"
+                      onclick={() => installPkg(pkg.id)}
+                      disabled={installingPkg === pkg.id}
+                    >
+                      {#if installingPkg === pkg.id}
+                        <span class="spinner spinner--sm"></span>
+                      {:else}
+                        <Icon name="download" size={12} />
+                      {/if}
+                      {installingPkg === pkg.id ? "Installing..." : "Install"}
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {:else}
+            <div class="settings__health-summary">
+              <span class="badge badge--success">
+                <Icon name="check" size={12} />
+                All packages installed
+              </span>
+            </div>
+          {/if}
+        {:else}
+          <p class="settings__muted">Click "Scan System" to detect installed packages.</p>
+        {/if}
+      </section>
 
       <section class="settings__section">
         <div class="settings__health-header">
@@ -481,5 +753,115 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+  }
+
+  /* Update section */
+  .settings__update-available {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    background: var(--color-accent-subtle);
+  }
+
+  .settings__update-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .settings__update-date {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  .settings__update-notes {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .settings__update-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    align-self: flex-start;
+    text-decoration: none;
+  }
+
+  .settings__update-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .settings__update-progress > span {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .settings__progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+
+  .settings__progress-fill {
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    transition: width 200ms ease;
+  }
+
+  .settings__update-done {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-success, #34d399);
+  }
+
+  .settings__update-done button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+  }
+
+  /* Package manager */
+  .settings__pkg-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .settings__pkg-label {
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .settings__package-row--installed {
+    background: transparent;
+  }
+
+  .settings__package-version {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

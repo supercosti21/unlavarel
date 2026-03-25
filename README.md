@@ -24,12 +24,15 @@ Like Laragon, but open source and cross-platform. Built with Rust for speed.
 - **Multi-version PHP** — Switch between PHP 8.1–8.4 instantly, toggle extensions by category
 - **Database manager** — Create/drop databases, browse tables, inspect schemas, run SQL queries
 - **Project scaffolding** — Create Laravel, Filament, Symfony, WordPress projects with one click
+- **Import existing projects** — Add existing project folders with auto-scan directory detection
 - **Virtual hosts** — Auto-generated Nginx configs per project with PHP-FPM socket detection
 - **SSL certificates** — Local HTTPS via mkcert, auto-generated per domain
 - **DNS resolution** — dnsmasq for `*.test` domains (no `/etc/hosts` editing, no root)
 - **Mail testing** — Built-in mail viewer with Mailpit (message list, read/unread, HTML preview)
 - **Site sharing** — Public URLs via Cloudflare Tunnels or ngrok
 - **Project snapshots** — One-click backup (files + database), timestamped, restorable
+- **In-app update checker** — Check for new versions and download updates directly from settings
+- **Package manager** — Scan system for installed packages, install missing ones from settings
 - **Health check** — Verify all dependencies, services, DNS, SSL, and configuration
 - **Session password caching** — Authenticate once, reuse for the session (Linux/macOS)
 - **System tray** — Show/hide, start/stop all, quit from tray icon
@@ -69,8 +72,15 @@ Download the latest release for your platform:
 
 [Download Latest Release](https://github.com/supercosti21/unlavarel/releases/latest)
 
-> **macOS note**: The DMG is unsigned. After installing, run:
-> `xattr -rd com.apple.quarantine /Applications/Unlavarel.app`
+> **⚠️ macOS: required step after installation**
+>
+> The app is not yet notarized with Apple. macOS will block it from opening ("Unlavarel non può essere aperta" / "Apple cannot verify...").
+>
+> **Open Terminal and run:**
+> ```bash
+> xattr -rd com.apple.quarantine /Applications/Unlavarel.app
+> ```
+> Then open the app normally. You only need to do this once.
 
 ## Development
 
@@ -115,8 +125,9 @@ src-tauri/src/           Rust backend (Tauri v2)
   vhosts.rs              Nginx config generation, PHP-FPM socket detection
   dns.rs                 dnsmasq configuration
   ssl.rs                 mkcert certificate generation
-  projects.rs            Project CRUD + vhost/SSL/DB pipeline
+  projects.rs            Project CRUD + import + vhost/SSL/DB pipeline
   quickapp.rs            Project templates (Laravel, Filament, Symfony, WP)
+  updater.rs             In-app update checker via GitHub releases API
   php.rs                 PHP version switching, extension management
   sharing.rs             ngrok/Cloudflare tunnel management
   snapshots.rs           File + DB backup/restore
@@ -132,7 +143,7 @@ src-tauri/src/           Rust backend (Tauri v2)
 src/                     Svelte 5 frontend
   App.svelte             Root component, routing, keyboard shortcuts
   app.css                Design system (CSS variables, dark/light)
-  lib/components/        UI components (17 components)
+  lib/components/        UI components (18 components)
   lib/stores/            Reactive stores (.svelte.js)
 ```
 

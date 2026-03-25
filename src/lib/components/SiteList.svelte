@@ -1,7 +1,7 @@
 <script>
   import Icon from "./Icon.svelte";
 
-  let { projects = [], onAdd, onRemove, onOpen } = $props();
+  let { projects = [], onAdd, onImport, onRemove, onOpen } = $props();
 </script>
 
 <div class="site-list">
@@ -12,10 +12,16 @@
         <span class="badge badge--neutral">{projects.length}</span>
       {/if}
     </div>
-    <button class="btn-primary" onclick={onAdd}>
-      <Icon name="plus" size={14} />
-      Add Site
-    </button>
+    <div class="site-list__actions">
+      <button class="btn-ghost" onclick={onImport}>
+        <Icon name="upload" size={14} />
+        Import Existing
+      </button>
+      <button class="btn-primary" onclick={onAdd}>
+        <Icon name="plus" size={14} />
+        New Site
+      </button>
+    </div>
   </div>
 
   {#if projects.length === 0}
@@ -68,7 +74,13 @@
     justify-content: space-between;
   }
 
-  .site-list__header button {
+  .site-list__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .site-list__actions button {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
