@@ -270,6 +270,45 @@
       </section>
 
       <section class="settings__section">
+        <h3>Server</h3>
+        <p class="settings__desc">Web server, domain TLD, and port configuration.</p>
+        <div class="settings__field">
+          <label for="webserver">Web Server</label>
+          <select id="webserver" bind:value={settings.web_server}>
+            <option value="nginx">Nginx</option>
+            <option value="apache">Apache</option>
+          </select>
+        </div>
+        <div class="settings__field">
+          <label for="tld">Domain TLD</label>
+          <div class="settings__tld-row">
+            <span class="settings__tld-preview">project-name.</span>
+            <input id="tld" type="text" bind:value={settings.tld} placeholder="test" />
+          </div>
+          <span class="settings__hint">Projects will be accessible at name.{settings.tld || 'test'}</span>
+        </div>
+        <div class="settings__field-row">
+          <div class="settings__field">
+            <label for="http-port">HTTP Port</label>
+            <input id="http-port" type="number" bind:value={settings.http_port} />
+          </div>
+          <div class="settings__field">
+            <label for="https-port">HTTPS Port</label>
+            <input id="https-port" type="number" bind:value={settings.https_port} />
+          </div>
+          <div class="settings__field">
+            <label for="db-port">DB Port</label>
+            <input id="db-port" type="number" bind:value={settings.db_port} />
+          </div>
+        </div>
+        <label class="settings__switch">
+          <input type="checkbox" bind:checked={settings.auto_create_vhost} />
+          <span class="settings__switch-track"></span>
+          <span>Auto-create virtual host when a new folder appears in project root</span>
+        </label>
+      </section>
+
+      <section class="settings__section">
         <h3>Tools</h3>
         <p class="settings__desc">External tools used for opening projects.</p>
         <div class="settings__field">
@@ -597,6 +636,42 @@
   .settings__field label {
     font-size: var(--text-sm);
     font-weight: var(--font-medium);
+  }
+
+  .settings__tld-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .settings__tld-preview {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    padding: var(--space-2) var(--space-2);
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    white-space: nowrap;
+  }
+
+  .settings__tld-row input {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    width: 100px;
+  }
+
+  .settings__field-row {
+    display: flex;
+    gap: var(--space-3);
+  }
+
+  .settings__field-row .settings__field {
+    flex: 1;
+  }
+
+  .settings__field-row input[type="number"] {
+    width: 100%;
   }
 
   .settings__hint {

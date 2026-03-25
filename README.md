@@ -23,15 +23,21 @@ Like Laragon, but open source and cross-platform. Built with Rust for speed.
 - **Service discovery** — Auto-detects installed services at startup, shows only what you have
 - **Multi-version PHP** — Switch between PHP 8.1–8.4 instantly, toggle extensions by category
 - **Database manager** — Create/drop databases, browse tables, inspect schemas, run SQL queries
-- **Project scaffolding** — Create Laravel, Filament, Symfony, WordPress projects with one click
-- **Import existing projects** — Add existing project folders with auto-scan directory detection
-- **Virtual hosts** — Auto-generated Nginx configs per project with PHP-FPM socket detection
+- **Project scaffolding** — Create Laravel, Filament, Symfony, WordPress, Drupal, Joomla, PrestaShop, CakePHP, Lumen projects
+- **Custom templates** — Define your own project templates (composer packages or download URLs)
+- **Import existing projects** — Native folder picker with auto-scan and .env detection
+- **Virtual hosts** — Auto-generated Nginx/Apache configs per project with PHP-FPM socket detection
+- **Auto virtual hosts** — Automatically create vhost when new folder appears in project root
+- **Custom TLD** — Use `.test`, `.local`, `.localhost` or any TLD you want
+- **Custom ports** — Configure HTTP, HTTPS, and database ports
 - **SSL certificates** — Local HTTPS via mkcert, auto-generated per domain
-- **DNS resolution** — dnsmasq for `*.test` domains (no `/etc/hosts` editing, no root)
+- **DNS resolution** — dnsmasq for `*.{tld}` domains (no `/etc/hosts` editing, no root)
 - **Mail testing** — Built-in mail viewer with Mailpit (message list, read/unread, HTML preview)
+- **Config file editor** — Edit php.ini, nginx.conf, my.cnf, dnsmasq.conf directly from the app
+- **Terminal launcher** — Open system terminal with pre-configured PATH (Homebrew, etc.)
 - **Site sharing** — Public URLs via Cloudflare Tunnels or ngrok
 - **Project snapshots** — One-click backup (files + database), timestamped, restorable
-- **In-app update checker** — Check for new versions and download updates directly from settings
+- **In-app auto-updater** — Download, install, and restart — all from settings
 - **Package manager** — Scan system for installed packages, install missing ones from settings
 - **Health check** — Verify all dependencies, services, DNS, SSL, and configuration
 - **Session password caching** — Authenticate once, reuse for the session (Linux/macOS)
@@ -43,7 +49,7 @@ Like Laragon, but open source and cross-platform. Built with Rust for speed.
 
 | Category | Services |
 |----------|----------|
-| Web Server | Nginx |
+| Web Server | Nginx, Apache |
 | Language | PHP 8.1, 8.2, 8.3, 8.4 |
 | Database | MySQL, MariaDB, PostgreSQL 15-17 |
 | Cache | Redis, Memcached |

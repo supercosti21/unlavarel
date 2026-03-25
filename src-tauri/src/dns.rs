@@ -17,6 +17,16 @@ pub fn dnsmasq_config_path() -> PathBuf {
     }
 }
 
+/// Build the dnsmasq entry for a given TLD
+fn tld_entry(tld: &str) -> String {
+    format!("address=/.{}/127.0.0.1", tld)
+}
+
+/// Get the current TLD from settings
+fn current_tld() -> String {
+    crate::settings::get_settings_sync().tld
+}
+
 const TEST_TLD_ENTRY: &str = "address=/.test/127.0.0.1";
 
 /// Check if dnsmasq is already configured for .test TLD.
@@ -27,7 +37,8 @@ pub async fn is_configured() -> Result<bool> {
     }
 
     let content = tokio::fs::read_to_string(&config_path).await?;
-    Ok(content.contains(TEST_TLD_ENTRY))
+    let tld = current_tld();
+    Ok(content.contains(&tld_entry(&tld)) || content.contains(TEST_TLD_ENTRY))
 }
 
 /// Configure dnsmasq for .test TLD resolution.
