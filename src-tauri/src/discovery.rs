@@ -153,7 +153,13 @@ async fn detect(
     category: &str,
     version_parser: fn(&str) -> String,
 ) -> Option<InstalledService> {
-    let output = Command::new(binary).args(args).output().await.ok()?;
+    let enriched_path = crate::setup::build_enriched_path();
+    let output = Command::new(binary)
+        .args(args)
+        .env("PATH", &enriched_path)
+        .output()
+        .await
+        .ok()?;
 
     let text = if output.status.success() {
         String::from_utf8_lossy(&output.stdout).to_string()
@@ -180,7 +186,13 @@ async fn detect(
 }
 
 async fn which_path(cmd: &str) -> Option<String> {
-    let output = Command::new("which").arg(cmd).output().await.ok()?;
+    let enriched_path = crate::setup::build_enriched_path();
+    let output = Command::new("which")
+        .arg(cmd)
+        .env("PATH", &enriched_path)
+        .output()
+        .await
+        .ok()?;
     if output.status.success() {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {

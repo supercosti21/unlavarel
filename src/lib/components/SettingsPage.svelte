@@ -36,6 +36,7 @@
     loadPhpVersions();
     loadInstalledServices();
     loadVersion();
+    runPreScan(); // Auto-detect installed packages on load
   });
 
   async function loadSettings() {

@@ -108,16 +108,24 @@ pub async fn pre_scan_system() -> Result<PreScanResult, String> {
         ("Mailpit", "mailpit", "mailpit", vec!["version"]),
     ];
 
+    // Build a PATH that includes common install locations so Tauri finds them
+    let enriched_path = build_enriched_path();
+
     let mut installed = Vec::new();
     let mut missing = Vec::new();
 
     for (name, id, binary, args) in &checks {
-        let output = Command::new(binary).args(args.as_slice()).output().await;
+        let output = Command::new(binary)
+            .args(args.as_slice())
+            .env("PATH", &enriched_path)
+            .output()
+            .await;
         match output {
             Ok(o) => {
                 let text = if o.status.success() {
                     String::from_utf8_lossy(&o.stdout).to_string()
                 } else {
+                    // Some tools (nginx -v, dnsmasq --version) print to stderr
                     String::from_utf8_lossy(&o.stderr).to_string()
                 };
                 let first_line = text.lines().next().unwrap_or("").trim();
@@ -149,6 +157,46 @@ pub async fn pre_scan_system() -> Result<PreScanResult, String> {
     }
 
     Ok(PreScanResult { installed, missing })
+}
+
+/// Build a PATH env var that includes Homebrew, common Linux, and system paths.
+/// This ensures Tauri's subprocess can find binaries even when the app doesn't
+/// inherit the user's full shell environment (common on macOS GUI apps).
+pub fn build_enriched_path() -> String {
+    let mut paths: Vec<String> = Vec::new();
+
+    // macOS Homebrew (Apple Silicon + Intel)
+    if cfg!(target_os = "macos") {
+        paths.push("/opt/homebrew/bin".into());
+        paths.push("/opt/homebrew/sbin".into());
+        paths.push("/usr/local/bin".into());
+        paths.push("/usr/local/sbin".into());
+    }
+
+    // Linux common paths
+    if cfg!(target_os = "linux") {
+        paths.push("/usr/local/bin".into());
+        paths.push("/usr/bin".into());
+        paths.push("/bin".into());
+        paths.push("/usr/sbin".into());
+        paths.push("/sbin".into());
+        paths.push("/snap/bin".into());
+    }
+
+    // Windows
+    if cfg!(target_os = "windows") {
+        paths.push(r"C:\Program Files\MySQL\MySQL Server 8.0\bin".into());
+        paths.push(r"C:\Program Files\PostgreSQL\17\bin".into());
+        paths.push(r"C:\Program Files\nodejs".into());
+    }
+
+    // Append current PATH so we don't lose anything
+    if let Ok(current) = std::env::var("PATH") {
+        paths.push(current);
+    }
+
+    let sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+    paths.join(sep)
 }
 
 /// Extract a meaningful version number from command output
