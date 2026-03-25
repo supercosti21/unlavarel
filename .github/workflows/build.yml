@@ -11,6 +11,41 @@ permissions:
   contents: write
 
 jobs:
+  # Compute the next version for auto-releases on main
+  version:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: bump
+        run: |
+          # Get latest versioned tag (vX.Y.Z), default to v0.0.0
+          LATEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+          fi
+          echo "Latest tag: $LATEST_TAG"
+
+          # Parse semver
+          VERSION="${LATEST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          # Auto-increment patch
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          NEW_TAG="v${NEW_VERSION}"
+
+          echo "New version: $NEW_VERSION ($NEW_TAG)"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
   build:
     strategy:
       fail-fast: false
@@ -77,9 +112,9 @@ jobs:
           path: artifacts/*
           retention-days: 30
 
-  # After all 3 platforms build, create/update the "latest" release
+  # After all 3 platforms build, create auto-versioned release
   release:
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
@@ -104,15 +139,16 @@ jobs:
           echo "Release files:"
           ls -lh release/
 
-      # Delete old "latest" release + tag, then recreate
-      - name: Update latest release
+      # Create versioned release for every push to main
+      - name: Create release ${{ needs.version.outputs.tag }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: "Unlavarel — Latest Build"
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: "Unlavarel ${{ needs.version.outputs.tag }}"
           body: |
-            **Auto-updated on every push to main.**
-            Last built: ${{ github.sha }}
+            ## Unlavarel ${{ needs.version.outputs.tag }}
+
+            Auto-release from commit ${{ github.sha }}.
 
             ### Downloads
             | Platform | File |
@@ -121,15 +157,23 @@ jobs:
             | Linux | `.AppImage` / `.deb` |
             | Windows | `.msi` / `.exe` |
 
-            > ⚠️ macOS: first launch requires `xattr -rd com.apple.quarantine Unlavarel.app`
+            > **macOS:** after installing, run `xattr -rd com.apple.quarantine /Applications/Unlavarel.app`
           draft: false
-          prerelease: true
+          prerelease: false
           make_latest: true
           files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Versioned release when you push a tag like v0.1.0
+      # Also update the "latest" tag for backwards compatibility
+      - name: Update latest tag
+        run: |
+          git tag -f latest
+          git push -f origin latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Versioned release when you push a tag like v0.1.0 manually
   versioned-release:
     needs: build
     runs-on: ubuntu-latest
@@ -167,6 +211,8 @@ jobs:
             | macOS (universal) | `.dmg` |
             | Linux | `.AppImage` / `.deb` |
             | Windows | `.msi` / `.exe` |
+
+            > **macOS:** after installing, run `xattr -rd com.apple.quarantine /Applications/Unlavarel.app`
           draft: false
           prerelease: false
           make_latest: true

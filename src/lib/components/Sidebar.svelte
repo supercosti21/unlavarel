@@ -74,7 +74,7 @@
 
   .sidebar__header {
     padding: 0 var(--space-4) var(--space-4);
-    padding-top: 42px; /* space for traffic lights */
+    padding-top: var(--space-4);
     border-bottom: 1px solid var(--color-border-subtle);
     display: flex;
     align-items: baseline;

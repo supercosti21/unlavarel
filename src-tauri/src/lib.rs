@@ -28,7 +28,7 @@ use services::{
     get_services, start_service, stop_service, restart_service,
     start_all_services, stop_all_services, get_service_logs, uninstall_package,
 };
-use projects::{get_projects, add_project, remove_project, scan_projects, import_project};
+use projects::{get_projects, add_project, remove_project, scan_projects, import_project, detect_project_env};
 use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete, health_check, pre_scan_system, install_single_package};
 use quickapp::{get_templates, create_app};
 use php::{get_php_versions, switch_php_version, get_php_extensions, toggle_php_extension};
@@ -43,6 +43,7 @@ use updater::{check_for_updates, get_current_version, download_and_install_updat
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             tray::setup_tray(app)?;
             // Start minimized if user enabled the setting
@@ -73,6 +74,7 @@ pub fn run() {
             remove_project,
             scan_projects,
             import_project,
+            detect_project_env,
             // Setup
             check_setup,
             bootstrap_package_manager,
