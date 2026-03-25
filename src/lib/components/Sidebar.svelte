@@ -29,7 +29,6 @@
 <aside class="sidebar">
   <div class="sidebar__header">
     <h1 class="sidebar__logo">Unlavarel</h1>
-    <span class="sidebar__version">v0.1.0</span>
   </div>
 
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
