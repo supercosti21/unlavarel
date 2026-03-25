@@ -69,8 +69,15 @@ Download the latest release for your platform:
 
 [Download Latest Release](https://github.com/supercosti21/unlavarel/releases/latest)
 
-> **macOS note**: The DMG is unsigned. After installing, run:
-> `xattr -rd com.apple.quarantine /Applications/Unlavarel.app`
+> **⚠️ macOS: required step after installation**
+>
+> The app is not yet notarized with Apple. macOS will block it from opening ("Unlavarel non può essere aperta" / "Apple cannot verify...").
+>
+> **Open Terminal and run:**
+> ```bash
+> xattr -rd com.apple.quarantine /Applications/Unlavarel.app
+> ```
+> Then open the app normally. You only need to do this once.
 
 ## Development
 
