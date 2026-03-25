@@ -191,7 +191,14 @@
 
   let installedIds = $derived(preScan ? preScan.installed.map((i) => i.id) : []);
   let missingPackages = $derived(
-    availablePackages.filter((p) => !installedIds.includes(p.id))
+    availablePackages.filter((p) => {
+      // Direct match
+      if (installedIds.includes(p.id)) return false;
+      // mysql/mariadb are interchangeable — if one is installed, hide both
+      if ((p.id === "mysql" || p.id === "mariadb") &&
+          (installedIds.includes("mysql") || installedIds.includes("mariadb"))) return false;
+      return true;
+    })
   );
 
   async function runHealthCheck() {

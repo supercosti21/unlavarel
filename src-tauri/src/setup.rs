@@ -478,7 +478,9 @@ pub async fn mark_setup_complete() -> Result<(), String> {
 #[tauri::command]
 pub async fn health_check() -> Result<HealthResult, String> {
     let mut checks = Vec::new();
+    let enriched_path = build_enriched_path();
 
+    // --- Services ---
     let binaries = [
         ("PHP", "php", "--version"),
         ("Composer", "composer", "--version"),
@@ -488,7 +490,7 @@ pub async fn health_check() -> Result<HealthResult, String> {
     ];
 
     for (name, binary, arg) in &binaries {
-        let output = Command::new(binary).arg(arg).output().await;
+        let output = Command::new(binary).arg(arg).env("PATH", &enriched_path).output().await;
         match output {
             Ok(o) => {
                 let text = if o.status.success() {
@@ -520,7 +522,7 @@ pub async fn health_check() -> Result<HealthResult, String> {
     for (name, candidates) in &optionals {
         let mut found = false;
         for binary in *candidates {
-            if let Ok(o) = Command::new(binary).arg("--version").output().await {
+            if let Ok(o) = Command::new(binary).arg("--version").env("PATH", &enriched_path).output().await {
                 let text = if o.status.success() {
                     String::from_utf8_lossy(&o.stdout)
                 } else {
@@ -539,9 +541,13 @@ pub async fn health_check() -> Result<HealthResult, String> {
         }
     }
 
+    // --- Configuration ---
+    let settings = crate::settings::get_settings_sync();
+    let tld = &settings.tld;
+
     let dns_ok = crate::dns::is_configured().await.unwrap_or(false);
     checks.push(HealthCheck {
-        name: "DNS (*.test)".into(),
+        name: format!("DNS (*.{})", tld),
         status: if dns_ok { "ok" } else { "missing" }.into(),
         detail: if dns_ok { "dnsmasq configured".into() } else { "Not configured".into() },
     });
@@ -553,6 +559,91 @@ pub async fn health_check() -> Result<HealthResult, String> {
         detail: if ca_ok { "Local CA trusted".into() } else { "Run mkcert -install".into() },
     });
 
+    // --- Nginx config test ---
+    if let Ok(o) = Command::new("nginx").args(["-t"]).env("PATH", &enriched_path).output().await {
+        let text = String::from_utf8_lossy(&o.stderr).to_string();
+        let first = text.lines().next().unwrap_or("").trim().to_string();
+        if o.status.success() {
+            checks.push(HealthCheck { name: "Nginx Config".into(), status: "ok".into(), detail: "Syntax OK".into() });
+        } else {
+            checks.push(HealthCheck { name: "Nginx Config".into(), status: "error".into(), detail: first });
+        }
+    }
+
+    // --- Service connectivity ---
+    // MySQL/MariaDB connectivity
+    let db_check = Command::new("mysql")
+        .args(["-u", "root", "-e", "SELECT 1"])
+        .env("PATH", &enriched_path)
+        .output().await;
+    match db_check {
+        Ok(o) if o.status.success() => {
+            checks.push(HealthCheck { name: "DB Connection".into(), status: "ok".into(), detail: "MySQL/MariaDB responding".into() });
+        }
+        _ => {
+            // Try mariadb binary
+            let mariadb_check = Command::new("mariadb")
+                .args(["-u", "root", "-e", "SELECT 1"])
+                .env("PATH", &enriched_path)
+                .output().await;
+            match mariadb_check {
+                Ok(o) if o.status.success() => {
+                    checks.push(HealthCheck { name: "DB Connection".into(), status: "ok".into(), detail: "MariaDB responding".into() });
+                }
+                _ => {
+                    checks.push(HealthCheck { name: "DB Connection".into(), status: "error".into(), detail: "Cannot connect to database".into() });
+                }
+            }
+        }
+    }
+
+    // --- Disk Space ---
+    let disk_detail = check_disk_space().await;
+    let disk_ok = !disk_detail.contains("LOW");
+    checks.push(HealthCheck {
+        name: "Disk Space".into(),
+        status: if disk_ok { "ok" } else { "warning" }.into(),
+        detail: disk_detail,
+    });
+
+    // --- Project root ---
+    let root_exists = PathBuf::from(&settings.project_root).is_dir();
+    checks.push(HealthCheck {
+        name: "Project Root".into(),
+        status: if root_exists { "ok" } else { "error" }.into(),
+        detail: if root_exists { settings.project_root.clone() } else { format!("{} does not exist", settings.project_root) },
+    });
+
     let all_ok = checks.iter().all(|c| c.status == "ok");
     Ok(HealthResult { checks, all_ok })
+}
+
+async fn check_disk_space() -> String {
+    if cfg!(target_os = "windows") {
+        return "N/A".into();
+    }
+    let output = Command::new("df")
+        .args(["-h", "/"])
+        .output()
+        .await;
+    match output {
+        Ok(o) if o.status.success() => {
+            let text = String::from_utf8_lossy(&o.stdout);
+            // Parse "df -h /" output: Filesystem Size Used Avail Use% Mounted
+            if let Some(line) = text.lines().nth(1) {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 4 {
+                    let avail = parts[3];
+                    let use_pct = parts.get(4).unwrap_or(&"0%");
+                    let pct_num: u32 = use_pct.trim_end_matches('%').parse().unwrap_or(0);
+                    if pct_num > 90 {
+                        return format!("LOW — {} free ({}% used)", avail, pct_num);
+                    }
+                    return format!("{} free ({}% used)", avail, pct_num);
+                }
+            }
+            "Could not parse".into()
+        }
+        _ => "Could not check".into(),
+    }
 }
