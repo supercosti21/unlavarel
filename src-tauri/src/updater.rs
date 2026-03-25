@@ -92,11 +92,15 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
         .await
         .map_err(|e| format!("Failed to parse release data: {}", e))?;
 
-    // Find latest non-prerelease with a real version tag, fall back to any release
+    // Find latest non-prerelease with a real version tag (vX.Y.Z)
+    // Skip tags like "latest" which are not real versions
     let release = releases
         .iter()
-        .find(|r| !r.prerelease && r.tag_name.starts_with('v'))
-        .or_else(|| releases.first())
+        .find(|r| !r.prerelease && r.tag_name.starts_with('v') && r.tag_name.contains('.'))
+        .or_else(|| {
+            // Fallback: any release with a version tag
+            releases.iter().find(|r| r.tag_name.starts_with('v') && r.tag_name.contains('.'))
+        })
         .ok_or("No releases found")?;
 
     let latest = release.tag_name.trim_start_matches('v').to_string();
