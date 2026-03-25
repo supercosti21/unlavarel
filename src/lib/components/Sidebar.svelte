@@ -9,6 +9,7 @@
     { id: "php", label: "PHP", icon: "code" },
     { id: "database", label: "Database", icon: "database" },
     { id: "mail", label: "Mail", icon: "mail" },
+    { id: "config", label: "Config", icon: "settings" },
     { id: "logs", label: "Logs", icon: "terminal" },
   ];
 

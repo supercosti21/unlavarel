@@ -30,10 +30,10 @@ use services::{
 };
 use projects::{get_projects, add_project, remove_project, scan_projects, import_project, detect_project_env};
 use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete, health_check, pre_scan_system, install_single_package};
-use quickapp::{get_templates, create_app};
+use quickapp::{get_templates, create_app, save_custom_template, delete_custom_template};
 use php::{get_php_versions, switch_php_version, get_php_extensions, toggle_php_extension};
 use logs::{watch_service_logs, unwatch_service_logs};
-use settings::{get_settings, save_settings, open_in_editor, open_in_browser};
+use settings::{get_settings, save_settings, open_in_editor, open_in_browser, open_terminal, read_config_file, write_config_file, list_config_files};
 use sharing::{share_site, stop_sharing, get_sharing_providers};
 use snapshots::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot};
 use database::{db_test_connection, db_get_connection, db_list_databases, db_create_database, db_drop_database, db_list_tables, db_describe_table, db_run_query};
@@ -86,6 +86,8 @@ pub fn run() {
             // Quick app
             get_templates,
             create_app,
+            save_custom_template,
+            delete_custom_template,
             // PHP
             get_php_versions,
             switch_php_version,
@@ -99,6 +101,10 @@ pub fn run() {
             save_settings,
             open_in_editor,
             open_in_browser,
+            open_terminal,
+            read_config_file,
+            write_config_file,
+            list_config_files,
             // Sharing
             share_site,
             stop_sharing,

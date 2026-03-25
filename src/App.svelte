@@ -15,6 +15,7 @@
   import ImportProjectDialog from "./lib/components/ImportProjectDialog.svelte";
   import SharingPanel from "./lib/components/SharingPanel.svelte";
   import SnapshotsPanel from "./lib/components/SnapshotsPanel.svelte";
+  import ConfigEditor from "./lib/components/ConfigEditor.svelte";
   import PasswordDialog from "./lib/components/PasswordDialog.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import { servicesStore } from "./lib/stores/services.svelte.js";
@@ -39,8 +40,9 @@
     "3": "php",
     "4": "database",
     "5": "mail",
-    "6": "logs",
-    "7": "settings",
+    "6": "config",
+    "7": "logs",
+    "8": "settings",
   };
 
   $effect(() => {
@@ -269,6 +271,7 @@
                 {/if}
                 <button class="btn-primary" onclick={startAll}>Start All</button>
                 <button class="btn-ghost" onclick={stopAll}>Stop All</button>
+                <button class="btn-ghost" onclick={() => invoke("open_terminal", {})}>Terminal</button>
               </div>
             </header>
 
@@ -349,6 +352,11 @@
         {:else if activePage === "mail"}
           <div class="page page--full">
             <MailViewer />
+          </div>
+
+        {:else if activePage === "config"}
+          <div class="page page--full">
+            <ConfigEditor />
           </div>
 
         {:else if activePage === "logs"}
