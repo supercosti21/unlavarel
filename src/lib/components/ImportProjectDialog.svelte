@@ -182,8 +182,7 @@
               bind:value={projectPath}
               oninput={onPathInput}
               onblur={onPathBlur}
-              placeholder="Select a folder..."
-              readonly
+              placeholder="/Users/you/Code/my-project"
             />
             <button class="btn-primary" onclick={browseFolder}>
               <Icon name="folder" size={14} />
@@ -252,8 +251,7 @@
               id="scan-dir"
               type="text"
               bind:value={scanDir}
-              placeholder="Select a directory..."
-              readonly
+              placeholder="/Users/you/Code"
             />
             <button class="btn-ghost" onclick={browseScanDir}>
               <Icon name="folder" size={14} />
@@ -404,7 +402,6 @@
 
   .dialog__browse-row input {
     flex: 1;
-    cursor: pointer;
   }
 
   .dialog__browse-row button {
