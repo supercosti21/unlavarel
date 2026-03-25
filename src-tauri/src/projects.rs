@@ -123,6 +123,107 @@ pub async fn remove_project(name: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Detect project environment from .env file (DB_DATABASE, DB_CONNECTION, etc.)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectEnvInfo {
+    pub db_connection: Option<String>,  // mysql, pgsql, sqlite, mariadb
+    pub db_database: Option<String>,
+    pub db_host: Option<String>,
+    pub db_port: Option<String>,
+    pub db_username: Option<String>,
+    pub project_type: String,           // laravel, symfony, wordpress, php, node, unknown
+    pub app_name: Option<String>,
+}
+
+#[tauri::command]
+pub async fn detect_project_env(path: String) -> Result<ProjectEnvInfo, String> {
+    let dir = PathBuf::from(&path);
+    if !dir.is_dir() {
+        return Err(format!("'{}' is not a valid directory", path));
+    }
+
+    // Detect project type
+    let project_type = if dir.join("artisan").exists() {
+        "laravel"
+    } else if dir.join("symfony.lock").exists() {
+        "symfony"
+    } else if dir.join("wp-config.php").exists() || dir.join("wp-config-sample.php").exists() {
+        "wordpress"
+    } else if dir.join("composer.json").exists() {
+        "php"
+    } else if dir.join("package.json").exists() {
+        "node"
+    } else {
+        "unknown"
+    };
+
+    let mut info = ProjectEnvInfo {
+        db_connection: None,
+        db_database: None,
+        db_host: None,
+        db_port: None,
+        db_username: None,
+        project_type: project_type.to_string(),
+        app_name: None,
+    };
+
+    // Try to read .env file (Laravel/PHP projects)
+    let env_path = dir.join(".env");
+    if env_path.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&env_path).await {
+            for line in content.lines() {
+                let line = line.trim();
+                if line.starts_with('#') || !line.contains('=') { continue; }
+                let mut parts = line.splitn(2, '=');
+                let key = parts.next().unwrap_or("").trim();
+                let val = parts.next().unwrap_or("").trim().trim_matches('"').trim_matches('\'');
+                if val.is_empty() { continue; }
+                match key {
+                    "DB_CONNECTION" => info.db_connection = Some(val.to_string()),
+                    "DB_DATABASE" => info.db_database = Some(val.to_string()),
+                    "DB_HOST" => info.db_host = Some(val.to_string()),
+                    "DB_PORT" => info.db_port = Some(val.to_string()),
+                    "DB_USERNAME" => info.db_username = Some(val.to_string()),
+                    "APP_NAME" => info.app_name = Some(val.to_string()),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    // WordPress: read wp-config.php for DB_NAME
+    if project_type == "wordpress" {
+        let wp_config = dir.join("wp-config.php");
+        if wp_config.exists() {
+            if let Ok(content) = tokio::fs::read_to_string(&wp_config).await {
+                for line in content.lines() {
+                    if line.contains("DB_NAME") {
+                        // define( 'DB_NAME', 'mydb' );
+                        if let Some(val) = line.split('\'').nth(3).or_else(|| line.split('"').nth(3)) {
+                            info.db_database = Some(val.to_string());
+                        }
+                    }
+                    if line.contains("DB_HOST") {
+                        if let Some(val) = line.split('\'').nth(3).or_else(|| line.split('"').nth(3)) {
+                            info.db_host = Some(val.to_string());
+                        }
+                    }
+                    if line.contains("DB_USER") && !line.contains("DB_USER\"") {
+                        if let Some(val) = line.split('\'').nth(3).or_else(|| line.split('"').nth(3)) {
+                            info.db_username = Some(val.to_string());
+                        }
+                    }
+                }
+                if info.db_connection.is_none() {
+                    info.db_connection = Some("mysql".to_string());
+                }
+            }
+        }
+    }
+
+    Ok(info)
+}
+
 /// Import an existing project folder into Unlavarel (creates vhost + SSL, optionally DB)
 #[tauri::command]
 pub async fn import_project(

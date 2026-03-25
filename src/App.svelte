@@ -1,7 +1,6 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import Titlebar from "./lib/components/Titlebar.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import ServiceCard from "./lib/components/ServiceCard.svelte";
   import SiteList from "./lib/components/SiteList.svelte";
@@ -211,9 +210,10 @@
   }
 
   async function openInBrowser(domain) {
-    invoke("open_in_browser", { url: `https://${domain}` }).catch(() => {
-      invoke("open_in_browser", { url: `http://${domain}` }).catch(() => {});
-    });
+    // Find the project to check if SSL is enabled
+    const proj = projectsStore.projects.find((p) => p.domain === domain);
+    const protocol = proj?.ssl ? "https" : "http";
+    invoke("open_in_browser", { url: `${protocol}://${domain}` }).catch(() => {});
   }
 
   async function openInEditor(path) {
@@ -232,8 +232,6 @@
     activePage = "projects";
   }
 </script>
-
-<Titlebar />
 
 {#if checkingSetup}
   <div class="app app--vertical">

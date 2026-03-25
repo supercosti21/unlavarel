@@ -1,18 +1,21 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import { open } from "@tauri-apps/plugin-dialog";
   import Icon from "./Icon.svelte";
 
   let { onImported, onClose } = $props();
 
   let projectPath = $state("");
   let projectName = $state("");
-  let createDb = $state(true);
+  let createDb = $state(false);
   let scanning = $state(false);
   let importing = $state(false);
   let error = $state(null);
   let scannedProjects = $state([]);
   let scanDir = $state("");
   let mode = $state("manual"); // "manual" or "scan"
+  let envInfo = $state(null);
+  let detecting = $state(false);
 
   $effect(() => {
     loadDefaultDir();
@@ -24,6 +27,54 @@
       scanDir = settings.project_root;
     } catch {
       scanDir = "";
+    }
+  }
+
+  async function browseFolder() {
+    try {
+      const selected = await open({ directory: true, multiple: false, title: "Select project folder" });
+      if (selected) {
+        projectPath = selected;
+        // Auto-derive name from path
+        const parts = projectPath.replace(/\/$/, "").split("/");
+        projectName = parts[parts.length - 1] || "";
+        // Auto-detect project environment
+        await detectEnv();
+      }
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function browseScanDir() {
+    try {
+      const selected = await open({ directory: true, multiple: false, title: "Select directory to scan" });
+      if (selected) {
+        scanDir = selected;
+      }
+    } catch (e) {
+      error = String(e);
+    }
+  }
+
+  async function detectEnv() {
+    if (!projectPath.trim()) return;
+    detecting = true;
+    envInfo = null;
+    try {
+      envInfo = await invoke("detect_project_env", { path: projectPath.trim() });
+      // If a DB was detected in .env, enable createDb and pre-fill name
+      if (envInfo.db_database) {
+        createDb = false; // DB already exists, don't create a new one
+      }
+      // Use APP_NAME as project name if available
+      if (envInfo.app_name && !projectName) {
+        projectName = envInfo.app_name.toLowerCase().replace(/\s+/g, "-");
+      }
+    } catch {
+      envInfo = null;
+    } finally {
+      detecting = false;
     }
   }
 
@@ -71,7 +122,6 @@
         path: project.path,
         createDb,
       });
-      // Mark as added in local state
       scannedProjects = scannedProjects.map((p) =>
         p.name === project.name ? { ...p, already_added: true } : p
       );
@@ -83,12 +133,19 @@
     }
   }
 
-  // Auto-derive name from path
+  // Manual path input — auto-derive name and detect env
   function onPathInput() {
-    if (!projectName && projectPath) {
+    if (projectPath) {
       const parts = projectPath.replace(/\/$/, "").split("/");
-      projectName = parts[parts.length - 1] || "";
+      const derived = parts[parts.length - 1] || "";
+      if (!projectName || projectName === derived) {
+        projectName = derived;
+      }
     }
+  }
+
+  function onPathBlur() {
+    if (projectPath.trim()) detectEnv();
   }
 </script>
 
@@ -106,7 +163,7 @@
         class="dialog__tab"
         class:dialog__tab--active={mode === "manual"}
         onclick={() => (mode = "manual")}
-      >Manual</button>
+      >Select Folder</button>
       <button
         class="dialog__tab"
         class:dialog__tab--active={mode === "scan"}
@@ -117,15 +174,22 @@
     <div class="dialog__body">
       {#if mode === "manual"}
         <div class="dialog__field">
-          <label for="import-path">Project Path</label>
-          <input
-            id="import-path"
-            type="text"
-            bind:value={projectPath}
-            oninput={onPathInput}
-            placeholder="/Users/you/Code/my-project"
-            autofocus
-          />
+          <label for="import-path">Project Folder</label>
+          <div class="dialog__browse-row">
+            <input
+              id="import-path"
+              type="text"
+              bind:value={projectPath}
+              oninput={onPathInput}
+              onblur={onPathBlur}
+              placeholder="Select a folder..."
+              readonly
+            />
+            <button class="btn-primary" onclick={browseFolder}>
+              <Icon name="folder" size={14} />
+              Browse
+            </button>
+          </div>
         </div>
 
         <div class="dialog__field">
@@ -138,9 +202,39 @@
           />
         </div>
 
+        {#if envInfo}
+          <div class="dialog__env-info">
+            <h4>Detected Configuration</h4>
+            <div class="dialog__env-grid">
+              <span class="dialog__env-label">Type</span>
+              <span class="badge badge--neutral">{envInfo.project_type}</span>
+
+              {#if envInfo.db_connection}
+                <span class="dialog__env-label">DB Engine</span>
+                <span>{envInfo.db_connection}</span>
+              {/if}
+
+              {#if envInfo.db_database}
+                <span class="dialog__env-label">Database</span>
+                <span class="mono">{envInfo.db_database}</span>
+              {/if}
+
+              {#if envInfo.db_host}
+                <span class="dialog__env-label">DB Host</span>
+                <span class="mono">{envInfo.db_host}{envInfo.db_port ? `:${envInfo.db_port}` : ''}</span>
+              {/if}
+            </div>
+          </div>
+        {:else if detecting}
+          <div class="dialog__env-detecting">
+            <span class="spinner spinner--sm"></span>
+            <span>Detecting project configuration...</span>
+          </div>
+        {/if}
+
         <label class="dialog__checkbox">
           <input type="checkbox" bind:checked={createDb} />
-          <span>Create database</span>
+          <span>Create new database{envInfo?.db_database ? ` (${envInfo.db_database} detected in .env)` : ''}</span>
         </label>
 
         {#if projectName && projectPath}
@@ -153,13 +247,18 @@
       {:else}
         <div class="dialog__field">
           <label for="scan-dir">Directory to scan</label>
-          <div class="dialog__scan-row">
+          <div class="dialog__browse-row">
             <input
               id="scan-dir"
               type="text"
               bind:value={scanDir}
-              placeholder="/Users/you/Code"
+              placeholder="Select a directory..."
+              readonly
             />
+            <button class="btn-ghost" onclick={browseScanDir}>
+              <Icon name="folder" size={14} />
+              Browse
+            </button>
             <button class="btn-primary" onclick={scanDirectory} disabled={scanning}>
               {scanning ? "Scanning..." : "Scan"}
             </button>
@@ -298,13 +397,21 @@
     font-weight: var(--font-medium);
   }
 
-  .dialog__scan-row {
+  .dialog__browse-row {
     display: flex;
     gap: var(--space-2);
   }
 
-  .dialog__scan-row input {
+  .dialog__browse-row input {
     flex: 1;
+    cursor: pointer;
+  }
+
+  .dialog__browse-row button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    white-space: nowrap;
   }
 
   .dialog__checkbox {
@@ -313,6 +420,44 @@
     gap: var(--space-2);
     font-size: var(--text-sm);
     cursor: pointer;
+  }
+
+  .dialog__env-info {
+    padding: var(--space-3);
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-subtle);
+  }
+
+  .dialog__env-info h4 {
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-2);
+  }
+
+  .dialog__env-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-1) var(--space-3);
+    font-size: var(--text-sm);
+    align-items: center;
+  }
+
+  .dialog__env-label {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .dialog__env-detecting {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    padding: var(--space-2);
   }
 
   .dialog__preview {
