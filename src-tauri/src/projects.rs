@@ -123,6 +123,22 @@ pub async fn remove_project(name: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Import an existing project folder into Unlavarel (creates vhost + SSL, optionally DB)
+#[tauri::command]
+pub async fn import_project(
+    name: String,
+    path: String,
+    create_db: Option<bool>,
+) -> Result<Project, String> {
+    let dir = std::path::Path::new(&path);
+    if !dir.is_dir() {
+        return Err(format!("'{}' is not a valid directory", path));
+    }
+
+    // Reuse add_project — it already handles duplicate check, SSL, vhost, DB
+    add_project(name, path, create_db).await
+}
+
 /// Scan a directory for PHP/Laravel projects (looks for artisan, composer.json, index.php)
 #[tauri::command]
 pub async fn scan_projects(directory: String) -> Result<Vec<ScannedProject>, String> {

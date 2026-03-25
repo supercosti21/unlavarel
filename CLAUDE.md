@@ -39,8 +39,9 @@ src-tauri/src/
   vhosts.rs           → Nginx config generation, dynamic PHP-FPM socket detection
   dns.rs              → dnsmasq configuration (macOS resolver + Linux systemd-resolved)
   ssl.rs              → mkcert certificate generation (CA + per-domain wildcards)
-  projects.rs         → Project CRUD + vhost/SSL/DB creation pipeline
+  projects.rs         → Project CRUD + import existing + vhost/SSL/DB creation pipeline
   quickapp.rs         → Project templates (Laravel, Filament, Symfony, WordPress, Blank)
+  updater.rs          → In-app update checker via GitHub Releases API
   php.rs              → PHP version switching, extension management by category
   sharing.rs          → Site sharing via ngrok/Cloudflare tunnels
   snapshots.rs        → File + DB backup/restore with timestamps
@@ -70,8 +71,9 @@ src/
     DbViewer.svelte       → Database manager (DB list, tables, schema, SQL runner)
     PhpManager.svelte     → PHP version switcher, extension toggle by category
     SetupWizard.svelte    → First-run setup (system check, stack selection, install)
-    SettingsPage.svelte   → Settings, health check, package management
+    SettingsPage.svelte   → Settings, update checker, package manager, health check
     QuickAppDialog.svelte → Project scaffolding dialog
+    ImportProjectDialog.svelte → Import existing project (manual + directory scan)
     SharingPanel.svelte   → Site sharing (ngrok/cloudflare)
     SnapshotsPanel.svelte → Backup/restore management
     PasswordDialog.svelte → Session password prompt

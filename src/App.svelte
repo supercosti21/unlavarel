@@ -13,6 +13,7 @@
   import SettingsPage from "./lib/components/SettingsPage.svelte";
   import PhpManager from "./lib/components/PhpManager.svelte";
   import QuickAppDialog from "./lib/components/QuickAppDialog.svelte";
+  import ImportProjectDialog from "./lib/components/ImportProjectDialog.svelte";
   import SharingPanel from "./lib/components/SharingPanel.svelte";
   import SnapshotsPanel from "./lib/components/SnapshotsPanel.svelte";
   import PasswordDialog from "./lib/components/PasswordDialog.svelte";
@@ -26,6 +27,7 @@
   let showSetup = $state(false);
   let checkingSetup = $state(true);
   let showQuickApp = $state(false);
+  let showImportProject = $state(false);
   let showPasswordDialog = $state(false);
   let pendingAction = $state(null);
   let activeLogService = $state(null);
@@ -223,6 +225,12 @@
     projectsStore.loadProjects();
     activePage = "projects";
   }
+
+  function handleProjectImported(name, path) {
+    // Don't close — user may want to import more (scan mode)
+    projectsStore.loadProjects();
+    activePage = "projects";
+  }
 </script>
 
 <Titlebar />
@@ -302,6 +310,7 @@
             <SiteList
               projects={projectsStore.projects}
               onAdd={() => (showQuickApp = true)}
+              onImport={() => (showImportProject = true)}
               onRemove={projectsStore.removeProject}
               onOpen={(name) => {
                 const proj = projectsStore.projects.find((p) => p.name === name);
@@ -380,6 +389,13 @@
     <QuickAppDialog
       onCreated={handleAppCreated}
       onClose={() => (showQuickApp = false)}
+    />
+  {/if}
+
+  {#if showImportProject}
+    <ImportProjectDialog
+      onImported={handleProjectImported}
+      onClose={() => (showImportProject = false)}
     />
   {/if}
 

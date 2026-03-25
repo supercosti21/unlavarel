@@ -20,6 +20,7 @@ pub mod sharing;
 pub mod snapshots;
 pub mod database;
 pub mod elevated;
+pub mod updater;
 
 use tauri::Manager;
 use discovery::{discover_services, get_cached_services};
@@ -27,8 +28,8 @@ use services::{
     get_services, start_service, stop_service, restart_service,
     start_all_services, stop_all_services, get_service_logs, uninstall_package,
 };
-use projects::{get_projects, add_project, remove_project, scan_projects};
-use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete, health_check, pre_scan_system};
+use projects::{get_projects, add_project, remove_project, scan_projects, import_project};
+use setup::{check_setup, bootstrap_package_manager, install_stack, mark_setup_complete, health_check, pre_scan_system, install_single_package};
 use quickapp::{get_templates, create_app};
 use php::{get_php_versions, switch_php_version, get_php_extensions, toggle_php_extension};
 use logs::{watch_service_logs, unwatch_service_logs};
@@ -37,6 +38,7 @@ use sharing::{share_site, stop_sharing, get_sharing_providers};
 use snapshots::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot};
 use database::{db_test_connection, db_get_connection, db_list_databases, db_create_database, db_drop_database, db_list_tables, db_describe_table, db_run_query};
 use elevated::{save_session_password, has_session_password, clear_session_password};
+use updater::{check_for_updates, get_current_version};
 
 pub fn run() {
     tauri::Builder::default()
@@ -70,6 +72,7 @@ pub fn run() {
             add_project,
             remove_project,
             scan_projects,
+            import_project,
             // Setup
             check_setup,
             bootstrap_package_manager,
@@ -77,6 +80,7 @@ pub fn run() {
             mark_setup_complete,
             health_check,
             pre_scan_system,
+            install_single_package,
             // Quick app
             get_templates,
             create_app,
@@ -115,6 +119,9 @@ pub fn run() {
             save_session_password,
             has_session_password,
             clear_session_password,
+            // Updater
+            check_for_updates,
+            get_current_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Unlavarel");
