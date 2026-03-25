@@ -1,5 +1,6 @@
 <script>
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import Icon from "./Icon.svelte";
   import { toastStore } from "../stores/toast.svelte.js";
 
@@ -17,6 +18,9 @@
   let preScan = $state(null);
   let preScanLoading = $state(false);
   let installingPkg = $state(null);
+  let updating = $state(false);
+  let updateProgress = $state(null);
+  let updateDone = $state(false);
 
   function friendlySettingsError(raw) {
     const msg = String(raw).toLowerCase();
@@ -87,6 +91,7 @@
 
   async function checkUpdates() {
     updateChecking = true;
+    updateDone = false;
     try {
       updateInfo = await invoke("check_for_updates");
       if (updateInfo.update_available) {
@@ -99,6 +104,47 @@
     } finally {
       updateChecking = false;
     }
+  }
+
+  async function applyUpdate() {
+    if (!updateInfo?.download_url) return;
+    updating = true;
+    updateProgress = null;
+    updateDone = false;
+
+    // Listen for progress events
+    const unlisten = await listen("update-progress", (event) => {
+      updateProgress = event.payload;
+    });
+
+    try {
+      const msg = await invoke("download_and_install_update", {
+        downloadUrl: updateInfo.download_url,
+      });
+      updateDone = true;
+      toastStore.success(msg);
+    } catch (e) {
+      toastStore.error(friendlySettingsError(e));
+    } finally {
+      updating = false;
+      unlisten();
+    }
+  }
+
+  async function restartApp() {
+    try {
+      await invoke("restart_app");
+    } catch (e) {
+      toastStore.error("Failed to restart: " + e);
+    }
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(1) + " " + sizes[i];
   }
 
   async function runPreScan() {
@@ -285,15 +331,43 @@
               {#if updateInfo.release_notes}
                 <p class="settings__update-notes">{updateInfo.release_notes.slice(0, 200)}{updateInfo.release_notes.length > 200 ? '...' : ''}</p>
               {/if}
-              <a
-                href={updateInfo.download_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn-primary settings__update-btn"
-              >
-                <Icon name="download" size={14} />
-                Download Update
-              </a>
+
+              {#if updateDone}
+                <div class="settings__update-done">
+                  <Icon name="check" size={16} />
+                  <span>Update installed!</span>
+                  <button class="btn-primary" onclick={restartApp}>
+                    <Icon name="refresh" size={14} />
+                    Restart Now
+                  </button>
+                </div>
+              {:else if updating}
+                <div class="settings__update-progress">
+                  <span class="spinner spinner--sm"></span>
+                  <span>
+                    {#if updateProgress?.phase === "downloading"}
+                      Downloading... {formatBytes(updateProgress.downloaded)}{updateProgress.total ? ` / ${formatBytes(updateProgress.total)}` : ''}
+                    {:else if updateProgress?.phase === "installing"}
+                      Installing update...
+                    {:else}
+                      Preparing...
+                    {/if}
+                  </span>
+                  {#if updateProgress?.total}
+                    <div class="settings__progress-bar">
+                      <div
+                        class="settings__progress-fill"
+                        style="width: {Math.round((updateProgress.downloaded / updateProgress.total) * 100)}%"
+                      ></div>
+                    </div>
+                  {/if}
+                </div>
+              {:else}
+                <button class="btn-primary settings__update-btn" onclick={applyUpdate}>
+                  <Icon name="download" size={14} />
+                  Update & Restart
+                </button>
+              {/if}
             </div>
           {:else}
             <div class="settings__health-summary">
@@ -715,6 +789,51 @@
     gap: var(--space-1);
     align-self: flex-start;
     text-decoration: none;
+  }
+
+  .settings__update-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .settings__update-progress > span {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .settings__progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+
+  .settings__progress-fill {
+    height: 100%;
+    background: var(--color-accent);
+    border-radius: var(--radius-full);
+    transition: width 200ms ease;
+  }
+
+  .settings__update-done {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--color-success, #34d399);
+  }
+
+  .settings__update-done button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
   }
 
   /* Package manager */

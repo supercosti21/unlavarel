@@ -38,7 +38,7 @@ use sharing::{share_site, stop_sharing, get_sharing_providers};
 use snapshots::{create_snapshot, list_snapshots, restore_snapshot, delete_snapshot};
 use database::{db_test_connection, db_get_connection, db_list_databases, db_create_database, db_drop_database, db_list_tables, db_describe_table, db_run_query};
 use elevated::{save_session_password, has_session_password, clear_session_password};
-use updater::{check_for_updates, get_current_version};
+use updater::{check_for_updates, get_current_version, download_and_install_update, restart_app};
 
 pub fn run() {
     tauri::Builder::default()
@@ -122,6 +122,8 @@ pub fn run() {
             // Updater
             check_for_updates,
             get_current_version,
+            download_and_install_update,
+            restart_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Unlavarel");
