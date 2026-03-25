@@ -41,10 +41,16 @@ async fn get_php_versions_homebrew() -> Result<Vec<PhpVersion>, String> {
     let mut versions = Vec::new();
 
     // Check active PHP version
-    let active_output = Command::new("php").arg("-v").output().await;
+    let enriched_path = crate::setup::build_enriched_path();
+    let active_output = Command::new("php")
+        .arg("-v")
+        .env("PATH", &enriched_path)
+        .output()
+        .await;
     let active_version = match active_output {
         Ok(o) if o.status.success() => {
             let text = String::from_utf8_lossy(&o.stdout);
+            // Parse "PHP 8.4.19 ..." -> "8.4"
             text.split_whitespace()
                 .nth(1)
                 .and_then(|v| {
@@ -60,7 +66,30 @@ async fn get_php_versions_homebrew() -> Result<Vec<PhpVersion>, String> {
         _ => String::new(),
     };
 
-    for ver in &["8.1", "8.2", "8.3", "8.4"] {
+    // Check unversioned php first (Homebrew `brew install php` -> latest)
+    let php_opt = PathBuf::from(prefix).join("opt/php");
+    let mut unversioned_ver = String::new();
+    if php_opt.exists() {
+        // Detect what version unversioned php actually is
+        if let Ok(o) = Command::new(php_opt.join("bin/php").to_string_lossy().to_string())
+            .arg("-v")
+            .env("PATH", &enriched_path)
+            .output()
+            .await
+        {
+            if o.status.success() {
+                let text = String::from_utf8_lossy(&o.stdout);
+                if let Some(v) = text.split_whitespace().nth(1) {
+                    let parts: Vec<&str> = v.split('.').collect();
+                    if parts.len() >= 2 {
+                        unversioned_ver = format!("{}.{}", parts[0], parts[1]);
+                    }
+                }
+            }
+        }
+    }
+
+    for ver in &["8.1", "8.2", "8.3", "8.4", "8.5"] {
         let opt_path = PathBuf::from(prefix).join(format!("opt/php@{}", ver));
         if opt_path.exists() {
             versions.push(PhpVersion {
@@ -68,12 +97,18 @@ async fn get_php_versions_homebrew() -> Result<Vec<PhpVersion>, String> {
                 active: active_version == *ver,
                 path: opt_path.to_string_lossy().to_string(),
             });
+        } else if *ver == unversioned_ver && php_opt.exists() {
+            // Unversioned php matches this version
+            versions.push(PhpVersion {
+                version: ver.to_string(),
+                active: active_version == *ver,
+                path: php_opt.to_string_lossy().to_string(),
+            });
         }
     }
 
-    // Also check unversioned php
-    let php_opt = PathBuf::from(prefix).join("opt/php");
-    if php_opt.exists() && versions.is_empty() {
+    // Fallback: if nothing found but php exists
+    if versions.is_empty() && php_opt.exists() && !active_version.is_empty() {
         versions.push(PhpVersion {
             version: active_version.clone(),
             active: true,
@@ -87,10 +122,16 @@ async fn get_php_versions_homebrew() -> Result<Vec<PhpVersion>, String> {
 async fn get_php_versions_apt() -> Result<Vec<PhpVersion>, String> {
     let mut versions = Vec::new();
 
-    let active_output = Command::new("php").arg("-v").output().await;
+    let enriched_path = crate::setup::build_enriched_path();
+    let active_output = Command::new("php")
+        .arg("-v")
+        .env("PATH", &enriched_path)
+        .output()
+        .await;
     let active_version = match active_output {
         Ok(o) if o.status.success() => {
             let text = String::from_utf8_lossy(&o.stdout);
+            // Parse "PHP 8.4.19 ..." -> "8.4"
             text.split_whitespace()
                 .nth(1)
                 .and_then(|v| {
@@ -123,7 +164,8 @@ async fn get_php_versions_apt() -> Result<Vec<PhpVersion>, String> {
 
 async fn get_php_versions_pacman() -> Result<Vec<PhpVersion>, String> {
     // Arch only has one PHP version in official repos
-    let output = Command::new("php").arg("-v").output().await;
+    let enriched_path = crate::setup::build_enriched_path();
+    let output = Command::new("php").arg("-v").env("PATH", &enriched_path).output().await;
     match output {
         Ok(o) if o.status.success() => {
             let text = String::from_utf8_lossy(&o.stdout);

@@ -56,11 +56,21 @@ impl Default for DbConnection {
 }
 
 fn detect_db_type() -> String {
-    if std::process::Command::new("mariadb").arg("--version").output().is_ok() {
+    let path = crate::setup::build_enriched_path();
+    let check = |bin: &str| {
+        std::process::Command::new(bin)
+            .arg("--version")
+            .env("PATH", &path)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+
+    if check("mariadb") {
         "mariadb".into()
-    } else if std::process::Command::new("mysql").arg("--version").output().is_ok() {
+    } else if check("mysql") {
         "mysql".into()
-    } else if std::process::Command::new("psql").arg("--version").output().is_ok() {
+    } else if check("psql") {
         "postgresql".into()
     } else {
         "mysql".into()
@@ -68,9 +78,17 @@ fn detect_db_type() -> String {
 }
 
 fn detect_db_port() -> u16 {
-    if std::process::Command::new("psql").arg("--version").output().is_ok()
-        && std::process::Command::new("mysql").arg("--version").output().is_err()
-    {
+    let path = crate::setup::build_enriched_path();
+    let has = |bin: &str| {
+        std::process::Command::new(bin)
+            .arg("--version")
+            .env("PATH", &path)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    };
+
+    if has("psql") && !has("mysql") && !has("mariadb") {
         5432
     } else {
         3306
@@ -81,6 +99,7 @@ fn detect_db_port() -> u16 {
 fn mysql_cmd(conn: &DbConnection) -> Command {
     let binary = if conn.db_type == "mariadb" { "mariadb" } else { "mysql" };
     let mut cmd = Command::new(binary);
+    cmd.env("PATH", crate::setup::build_enriched_path());
     cmd.args(["-h", &conn.host, "-P", &conn.port.to_string(), "-u", &conn.user]);
     if !conn.password.is_empty() {
         cmd.arg(format!("-p{}", conn.password));
@@ -93,6 +112,7 @@ fn mysql_cmd(conn: &DbConnection) -> Command {
 /// Build the psql command with connection args
 fn psql_cmd(conn: &DbConnection) -> Command {
     let mut cmd = Command::new("psql");
+    cmd.env("PATH", crate::setup::build_enriched_path());
     cmd.args(["-h", &conn.host, "-p", &conn.port.to_string(), "-U", &conn.user]);
     cmd.arg("--tuples-only");
     cmd.arg("--no-align");
